@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "master"
+      - "staging"
+      - "trying"
+  pull_request:
+
+env:
+  NODE_JS: "16"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_JS }}
+      - uses: bahmutov/npm-install@v1
+      - run: npm run test:lint
+      - run: npm run test:prettier
+      - run: npm run test:spelling
+      - run: npm run test:tsc
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_JS }}
+      - uses: bahmutov/npm-install@v1
+      - run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_JS }}
+      - uses: bahmutov/npm-install@v1
+      - run: npm run test:browser
