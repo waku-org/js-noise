@@ -27,7 +27,7 @@ export const NoisePaddingBlockSize = 248;
 //   - the local and remote ephemeral/static keys e,s,re,rs (if any)
 //   - the initiator flag (true if the user creating the state is the handshake initiator, false otherwise)
 //   - the handshakePattern (containing the handshake protocol name, and (pre)message patterns)
-// This object is futher extended from specifications by storing:
+// This object is further extended from specifications by storing:
 //   - a message pattern index msgPatternIdx indicating the next handshake message pattern to process
 //   - the user's preshared psk, if any
 export class HandshakeState {

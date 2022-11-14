@@ -22,8 +22,8 @@
     "fix:lint": "eslint src --ext .ts --ext .cjs --fix",
     "test": "run-s test:*",
     "test:lint": "eslint src --ext .ts",
-    "test:prettier": "prettier \"src/**/*.ts\" \"./*.json\" \"*.*js\" \".github/**/*.yml\" --list-different",
     "test:spelling": "cspell \"{*.md,.github/*.md,src/**/*.ts}\"",
+    "test:prettier": "prettier \"src/**/*.ts\" \"*.*js\" \".github/**/*.yml\" --list-different",
     "test:tsc": "tsc -p tsconfig.dev.json",
     "test:browser": "karma start karma.conf.cjs",
     "watch:build": "tsc -p tsconfig.json -w",
@@ -110,6 +110,8 @@
   "dependencies": {
     "@stablelib/chacha20poly1305": "^1.0.1",
     "@stablelib/hkdf": "^1.0.1",
+    "@stablelib/hmac-drbg": "^1.0.2",
+    "@stablelib/random": "^1.0.2",
     "@stablelib/sha256": "^1.0.1",
     "@stablelib/x25519": "^1.0.1",
     "pkcs7-padding": "^0.1.1",

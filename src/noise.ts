@@ -30,7 +30,7 @@ import { HandshakePattern } from "./patterns.js";
 # - A preshared key psk is processed by calling MixKeyAndHash(psk);
 # - When an ephemeral public key e is read or written, the handshake hash value h is updated by calling mixHash(e); If the handshake expects a psk, MixKey(e) is further called
 # - When an encrypted static public key s or a payload message m is read, it is decrypted with decryptAndHash;
-# - When a static public key s or a payload message is writted, it is encrypted with encryptAndHash;
+# - When a static public key s or a payload message is written, it is encrypted with encryptAndHash;
 # - When any Diffie-Hellman token ee, es, se, ss is read or written, the chaining key ck is updated by calling MixKey on the computed secret;
 # - If all tokens are processed, users compute two new Cipher States by calling Split;
 # - The two Cipher States obtained from Split are used to encrypt/decrypt outbound/inbound messages.
@@ -113,6 +113,10 @@ export class CipherState {
       if (!plaintext) {
         throw "decryptWithAd failed";
       }
+
+      this.n.increment();
+      this.n.assertValue();
+
       return plaintext;
     } else {
       // Otherwise we return the input ciphertext according to specification
@@ -198,14 +202,14 @@ export class SymmetricState {
   // Combines MixKey and MixHash
   mixKeyAndHash(inputKeyMaterial: Uint8Array): void {
     // Derives 3 keys using HKDF, the chaining key and the input key material
-    const [tempk0, tempk1, tempk2] = getHKDF(this.ck, inputKeyMaterial);
+    const [tmpKey0, tmpKey1, tmpKey2] = getHKDF(this.ck, inputKeyMaterial);
     // Sets the chaining key
-    this.ck = tempk0;
+    this.ck = tmpKey0;
     // Updates the handshake hash value
-    this.mixHash(tempk1);
+    this.mixHash(tmpKey1);
     // Updates the Cipher state's key
     // Note for later support of 512 bits hash functions: "If HASHLEN is 64, then truncates tempKeys[2] to 32 bytes."
-    this.cs = new CipherState(tempk2);
+    this.cs = new CipherState(tmpKey2);
   }
 
   // EncryptAndHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
@@ -217,7 +221,7 @@ export class SymmetricState {
   ): Uint8Array {
     // The additional data
     const ad = uint8ArrayConcat([this.h, extraAd]);
-    // Note that if an encryption key is not set yet in the Cipher state, ciphertext will be equal to plaintex
+    // Note that if an encryption key is not set yet in the Cipher state, ciphertext will be equal to plaintext
     const ciphertext = this.cs.encryptWithAd(ad, plaintext);
     // We call mixHash over the result
     this.mixHash(ciphertext);
@@ -245,11 +249,11 @@ export class SymmetricState {
   // Once a handshake is complete, returns two Cipher States to encrypt/decrypt outbound/inbound messages
   split(): { cs1: CipherState; cs2: CipherState } {
     // Derives 2 keys using HKDF and the chaining key
-    const [tempk1, tempk2] = getHKDF(this.ck, new Uint8Array(0));
+    const [tmpKey1, tmpKey2] = getHKDF(this.ck, new Uint8Array(0));
     // Returns a tuple of two Cipher States initialized with the derived keys
     return {
-      cs1: new CipherState(tempk1),
-      cs2: new CipherState(tempk2),
+      cs1: new CipherState(tmpKey1),
+      cs2: new CipherState(tmpKey2),
     };
   }
 

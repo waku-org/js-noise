@@ -19,7 +19,7 @@ export class HandshakeStepResult {
   transportMessage: Uint8Array = new Uint8Array();
 }
 
-// When a handshake is complete, the HandhshakeResult will contain the two
+// When a handshake is complete, the HandshakeResult will contain the two
 // Cipher States used to encrypt/decrypt outbound/inbound messages
 // The recipient static key rs and handshake hash values h are stored to address some possible future applications (channel-binding, session management, etc.).
 // However, are not required by Noise specifications and are thus optional
@@ -59,7 +59,7 @@ export class Handshake {
   // Advances 1 step in handshake
   //  Each user in a handshake alternates writing and reading of handshake messages.
   // If the user is writing the handshake message, the transport message (if not empty) and eventually a non-empty message nametag has to be passed to transportMessage and messageNametag and readPayloadV2 can be left to its default value
-  // It the user is reading the handshake message, the read payload v2 has to be passed to readPayloadV2 and the transportMessage can be left to its default values. Decryption is skipped if the payloadv2 read doesn't have a message nametag equal to messageNametag (empty input nametags are converted to all-0 MessageNametagLength bytes arrays)
+  // It the user is reading the handshake message, the read payload v2 has to be passed to readPayloadV2 and the transportMessage can be left to its default values. Decryption is skipped if the PayloadV2 read doesn't have a message nametag equal to messageNametag (empty input nametags are converted to all-0 MessageNametagLength bytes arrays)
   stepHandshake(
     readPayloadV2: PayloadV2 = new PayloadV2(),
     transportMessage: Uint8Array = new Uint8Array(),
@@ -120,7 +120,7 @@ export class Handshake {
       const readHandshakeMessage = readPayloadV2.handshakeMessage;
       const readTransportMessage = readPayloadV2.transportMessage;
 
-      // Since we only read, nothing meanigful (i.e. public keys) is returned
+      // Since we only read, nothing meaningful (i.e. public keys) is returned
       this.hs.processMessagePatternTokens(readHandshakeMessage);
       // We retrieve and store the (decrypted) received transport message by passing the messageNametag as extra additional data
       hsStepResult.transportMessage = this.hs.processMessagePatternPayload(
