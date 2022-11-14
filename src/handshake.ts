@@ -1,501 +1,260 @@
 import * as pkcs7 from "pkcs7-padding";
 
-import { bytes32 } from "./@types/basic.js";
-import type { KeyPair } from "./@types/keypair.js";
-import {
-  Curve25519KeySize,
-  dh,
-  generateX25519KeyPair,
-  intoCurve25519Key,
-} from "./crypto.js";
-import { SymmetricState } from "./noise.js";
-import {
-  EmptyPreMessage,
-  HandshakePattern,
-  MessageDirection,
-  NoiseTokens,
-  PreMessagePattern,
-} from "./patterns";
-import { NoisePublicKey } from "./publickey.js";
+import { bytes32 } from "./@types/basic";
+import { KeyPair } from "./@types/keypair";
+import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state";
+import { CipherState } from "./noise";
+import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns";
+import { MessageNametagBuffer, PayloadV2, toMessageNametag } from "./payload";
+import { NoisePublicKey } from "./publickey";
 
-// The padding blocksize of  a transport message
-const NoisePaddingBlockSize = 248;
+// Noise state machine
 
-// The Handshake State as in https://noiseprotocol.org/noise.html#the-handshakestate-object
-// Contains
-//   - the local and remote ephemeral/static keys e,s,re,rs (if any)
-//   - the initiator flag (true if the user creating the state is the handshake initiator, false otherwise)
-//   - the handshakePattern (containing the handshake protocol name, and (pre)message patterns)
-// This object is futher extended from specifications by storing:
-//   - a message pattern index msgPatternIdx indicating the next handshake message pattern to process
-//   - the user's preshared psk, if any
-export class HandshakeState {
-  s?: KeyPair;
-  e?: KeyPair;
-  rs?: bytes32;
-  re?: bytes32;
-  ss: SymmetricState;
-  initiator: boolean;
-  handshakePattern: HandshakePattern;
-  msgPatternIdx: number;
-  psk: Uint8Array;
+// While processing messages patterns, users either:
+// - read (decrypt) the other party's (encrypted) transport message
+// - write (encrypt) a message, sent through a PayloadV2
+// These two intermediate results are stored in the HandshakeStepResult data structure
+export class HandshakeStepResult {
+  payload2: PayloadV2 = new PayloadV2();
+  transportMessage: Uint8Array = new Uint8Array();
+}
 
-  constructor(hsPattern: HandshakePattern, psk: Uint8Array) {
-    // By default the Handshake State initiator flag is set to false
-    // Will be set to true when the user associated to the handshake state starts an handshake
-    this.initiator = false;
+// When a handshake is complete, the HandhshakeResult will contain the two
+// Cipher States used to encrypt/decrypt outbound/inbound messages
+// The recipient static key rs and handshake hash values h are stored to address some possible future applications (channel-binding, session management, etc.).
+// However, are not required by Noise specifications and are thus optional
+export class HandshakeResult {
+  csOutbound?: CipherState;
+  csInbound?: CipherState;
+  // Optional fields:
+  nametagsInbound: MessageNametagBuffer = new MessageNametagBuffer();
+  nametagsOutbound: MessageNametagBuffer = new MessageNametagBuffer();
+  rs: bytes32 = new Uint8Array();
+  h: bytes32 = new Uint8Array();
+}
 
-    this.handshakePattern = hsPattern;
-    this.psk = psk;
+export class Handshake {
+  hs: HandshakeState;
+  constructor(
+    hasPattern: HandshakePattern,
+    ephemeralKey: KeyPair,
+    staticKey?: KeyPair,
+    prologue: Uint8Array = new Uint8Array(),
+    psk: Uint8Array = new Uint8Array(),
+    preMessagePKs: Array<NoisePublicKey> = [],
+    initiator = false
+  ) {
+    this.hs = new HandshakeState(hasPattern, psk);
+    this.hs.ss.mixHash(prologue);
+    this.hs.e = ephemeralKey;
+    this.hs.s = staticKey;
+    this.hs.psk = psk;
+    this.hs.msgPatternIdx = 0;
+    this.hs.initiator = initiator;
 
-    this.ss = new SymmetricState(hsPattern);
-
-    this.msgPatternIdx = 0;
+    // We process any eventual handshake pre-message pattern by processing pre-message public keys
+    this.hs.processPreMessagePatternTokens(preMessagePKs);
   }
 
-  // Handshake Processing
+  // Advances 1 step in handshake
+  //  Each user in a handshake alternates writing and reading of handshake messages.
+  // If the user is writing the handshake message, the transport message (if not empty) and eventually a non-empty message nametag has to be passed to transportMessage and messageNametag and readPayloadV2 can be left to its default value
+  // It the user is reading the handshake message, the read payload v2 has to be passed to readPayloadV2 and the transportMessage can be left to its default values. Decryption is skipped if the payloadv2 read doesn't have a message nametag equal to messageNametag (empty input nametags are converted to all-0 MessageNametagLength bytes arrays)
+  stepHandshake(
+    readPayloadV2: PayloadV2 = new PayloadV2(),
+    transportMessage: Uint8Array = new Uint8Array(),
+    messageNametag: Uint8Array = new Uint8Array()
+  ): HandshakeStepResult {
+    const hsStepResult = new HandshakeStepResult();
 
-  // Based on the message handshake direction and if the user is or not the initiator, returns a boolean tuple telling if the user
-  // has to read or write the next handshake message
-  getReadingWritingState(direction: MessageDirection): {
-    reading: boolean;
-    writing: boolean;
-  } {
-    let reading = false;
-    let writing = false;
-
-    if (this.initiator && direction == MessageDirection.r) {
-      // I'm Alice and direction is ->
-      reading = false;
-      writing = true;
-    } else if (this.initiator && direction == MessageDirection.l) {
-      // I'm Alice and direction is <-
-      reading = true;
-      writing = false;
-    } else if (!this.initiator && direction == MessageDirection.r) {
-      // I'm Bob and direction is ->
-      reading = true;
-      writing = false;
-    } else if (!this.initiator && direction == MessageDirection.l) {
-      // I'm Bob and direction is <-
-      reading = false;
-      writing = true;
-    }
-    return { reading, writing };
-  }
-
-  // Checks if a pre-message is valid according to Noise specifications
-  // http://www.noiseprotocol.org/noise.html#handshake-patterns
-  isValid(msg: Array<PreMessagePattern>): boolean {
-    let isValid = true;
-
-    // Non-empty pre-messages can only have patterns "e", "s", "e,s" in each direction
-    const allowedPatterns = [
-      new PreMessagePattern(MessageDirection.r, [NoiseTokens.s]),
-      new PreMessagePattern(MessageDirection.r, [NoiseTokens.e]),
-      new PreMessagePattern(MessageDirection.r, [NoiseTokens.e, NoiseTokens.s]),
-      new PreMessagePattern(MessageDirection.l, [NoiseTokens.s]),
-      new PreMessagePattern(MessageDirection.l, [NoiseTokens.e]),
-      new PreMessagePattern(MessageDirection.l, [NoiseTokens.e, NoiseTokens.s]),
-    ];
-
-    // We check if pre message patterns are allowed
-    for (const pattern of msg) {
-      if (!allowedPatterns.find((x) => x.equals(pattern))) {
-        isValid = false;
-        break;
-      }
+    // If there are no more message patterns left for processing
+    // we return an empty HandshakeStepResult
+    if (
+      this.hs.msgPatternIdx >
+      this.hs.handshakePattern.messagePatterns.length - 1
+    ) {
+      console.debug(
+        "stepHandshake called more times than the number of message patterns present in handshake"
+      );
+      return hsStepResult;
     }
 
-    return isValid;
-  }
+    // We process the next handshake message pattern
 
-  // Handshake messages processing procedures
-
-  // Processes pre-message patterns
-  processPreMessagePatternTokens(
-    inPreMessagePKs: Array<NoisePublicKey> = []
-  ): void {
-    // I make a copy of the input pre-message public keys, so that I can easily delete processed ones without using iterators/counters
-    const preMessagePKs = inPreMessagePKs;
-
-    // Here we store currently processed pre message public key
-    let currPK: NoisePublicKey;
-
-    // We retrieve the pre-message patterns to process, if any
-    // If none, there's nothing to do
-    if (this.handshakePattern.preMessagePatterns == EmptyPreMessage) {
-      return;
-    }
-
-    // If not empty, we check that pre-message is valid according to Noise specifications
-    if (!this.isValid(this.handshakePattern.preMessagePatterns)) {
-      throw "invalid pre-message in handshake";
-    }
-
-    // We iterate over each pattern contained in the pre-message
-    for (const messagePattern of this.handshakePattern.preMessagePatterns) {
-      const direction = messagePattern.direction;
-      const tokens = messagePattern.tokens;
-
-      // We get if the user is reading or writing the current pre-message pattern
-      const { reading, writing } = this.getReadingWritingState(direction);
-
-      // We process each message pattern token
-      for (const token of tokens) {
-        // We process the pattern token
-        switch (token) {
-          case NoiseTokens.e:
-            // We expect an ephemeral key, so we attempt to read it (next PK to process will always be at index 0 of preMessagePKs)
-            if (preMessagePKs.length > 0) {
-              currPK = preMessagePKs[0];
-            } else {
-              throw "noise pre-message read e, expected a public key";
-            }
-
-            // If user is reading the "e" token
-            if (reading) {
-              console.trace("noise pre-message read e");
-
-              // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
-              if (currPK.flag == 0) {
-                // Sets re and calls MixHash(re.public_key).
-                this.re = intoCurve25519Key(currPK.pk);
-                this.ss.mixHash(this.re);
-              } else {
-                throw "noise read e, incorrect encryption flag for pre-message public key";
-              }
-              // If user is writing the "e" token
-            } else if (writing) {
-              console.trace("noise pre-message write e");
-
-              // When writing, the user is sending a public key,
-              // We check that the public part corresponds to the set local key and we call MixHash(e.public_key).
-              if (this.e && this.e.publicKey == intoCurve25519Key(currPK.pk)) {
-                this.ss.mixHash(this.e.publicKey);
-              } else {
-                throw "noise pre-message e key doesn't correspond to locally set e key pair";
-              }
-            }
-
-            // Noise specification: section 9.2
-            // In non-PSK handshakes, the "e" token in a pre-message pattern or message pattern always results
-            // in a call to MixHash(e.public_key).
-            // In a PSK handshake, all of these calls are followed by MixKey(e.public_key).
-            if (this.handshakePattern.name.indexOf("psk") > -1) {
-              this.ss.mixKey(currPK.pk);
-            }
-
-            // We delete processed public key
-            preMessagePKs.shift();
-            break;
-          case NoiseTokens.s:
-            // We expect a static key, so we attempt to read it (next PK to process will always be at index of preMessagePKs)
-            if (preMessagePKs.length > 0) {
-              currPK = preMessagePKs[0];
-            } else {
-              throw "noise pre-message read s, expected a public key";
-            }
-
-            // If user is reading the "s" token
-            if (reading) {
-              console.trace("noise pre-message read s");
-
-              // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
-              if (currPK.flag == 0) {
-                // Sets re and calls MixHash(re.public_key).
-                this.rs = intoCurve25519Key(currPK.pk);
-                this.ss.mixHash(this.rs);
-              } else {
-                throw "noise read s, incorrect encryption flag for pre-message public key";
-              }
-
-              // If user is writing the "s" token
-            } else if (writing) {
-              console.trace("noise pre-message write s");
-
-              // If writing, it means that the user is sending a public key,
-              // We check that the public part corresponds to the set local key and we call MixHash(s.public_key).
-              if (this.s && this.s.publicKey == intoCurve25519Key(currPK.pk)) {
-                this.ss.mixHash(this.s.publicKey);
-              } else {
-                throw "noise pre-message s key doesn't correspond to locally set s key pair";
-              }
-            }
-
-            // Noise specification: section 9.2
-            // In non-PSK handshakes, the "e" token in a pre-message pattern or message pattern always results
-            // in a call to MixHash(e.public_key).
-            // In a PSK handshake, all of these calls are followed by MixKey(e.public_key).
-            if (this.handshakePattern.name.indexOf("psk") > -1) {
-              this.ss.mixKey(currPK.pk);
-            }
-
-            // We delete processed public key
-            preMessagePKs.shift();
-            break;
-          default:
-            throw "invalid Token for pre-message pattern";
-        }
-      }
-    }
-  }
-
-  // This procedure encrypts/decrypts the implicit payload attached at the end of every message pattern
-  // An optional extraAd to pass extra additional data in encryption/decryption can be set (useful to authenticate messageNametag)
-  processMessagePatternPayload(
-    transportMessage: Uint8Array,
-    extraAd: Uint8Array = new Uint8Array()
-  ): Uint8Array {
-    let payload: Uint8Array;
-
-    // We retrieve current message pattern (direction + tokens) to process
+    // We get if the user is reading or writing the input handshake message
     const direction =
-      this.handshakePattern.messagePatterns[this.msgPatternIdx].direction;
+      this.hs.handshakePattern.messagePatterns[this.hs.msgPatternIdx].direction;
+    const { reading, writing } = this.hs.getReadingWritingState(direction);
 
-    // We get if the user is reading or writing the input handshake message
-    const { reading, writing } = this.getReadingWritingState(direction);
+    // If we write an answer at this handshake step
+    if (writing) {
+      // We initialize a payload v2 and we set proper protocol ID (if supported)
+      try {
+        hsStepResult.payload2.protocolId =
+          PayloadV2ProtocolIDs[
+            this.hs.handshakePattern.name as keyof typeof PayloadV2ProtocolIDs
+          ];
+      } catch (err) {
+        throw "Handshake Pattern not supported";
+      }
 
-    // We decrypt the transportMessage, if any
-    if (reading) {
-      payload = this.ss.decryptAndHash(transportMessage, extraAd);
-      payload = pkcs7.pad(payload, NoisePaddingBlockSize);
-    } else if (writing) {
-      payload = pkcs7.unpad(transportMessage);
-      payload = this.ss.encryptAndHash(payload, extraAd);
+      // We set the messageNametag and the handshake and transport messages
+      hsStepResult.payload2.messageNametag = toMessageNametag(messageNametag);
+      hsStepResult.payload2.handshakeMessage =
+        this.hs.processMessagePatternTokens();
+      // We write the payload by passing the messageNametag as extra additional data
+      hsStepResult.payload2.transportMessage =
+        this.hs.processMessagePatternPayload(
+          transportMessage,
+          hsStepResult.payload2.messageNametag
+        );
+
+      // If we read an answer during this handshake step
+    } else if (reading) {
+      // If the read message nametag doesn't match the expected input one we raise an error
+      if (readPayloadV2.messageNametag != toMessageNametag(messageNametag)) {
+        throw "The message nametag of the read message doesn't match the expected one";
+      }
+
+      // We process the read public keys and (eventually decrypt) the read transport message
+      const readHandshakeMessage = readPayloadV2.handshakeMessage;
+      const readTransportMessage = readPayloadV2.transportMessage;
+
+      // Since we only read, nothing meanigful (i.e. public keys) is returned
+      this.hs.processMessagePatternTokens(readHandshakeMessage);
+      // We retrieve and store the (decrypted) received transport message by passing the messageNametag as extra additional data
+      hsStepResult.transportMessage = this.hs.processMessagePatternPayload(
+        readTransportMessage,
+        readPayloadV2.messageNametag
+      );
     } else {
-      throw "undefined state";
+      throw "Handshake Error: neither writing or reading user";
     }
-    return payload;
+
+    // We increase the handshake state message pattern index to progress to next step
+    this.hs.msgPatternIdx += 1;
+
+    return hsStepResult;
   }
 
-  // We process an input handshake message according to current handshake state and we return the next handshake step's handshake message
-  processMessagePatternTokens(
-    inputHandshakeMessage: Array<NoisePublicKey> = []
-  ): Array<NoisePublicKey> {
-    // We retrieve current message pattern (direction + tokens) to process
-    const messagePattern =
-      this.handshakePattern.messagePatterns[this.msgPatternIdx];
-    const direction = messagePattern.direction;
-    const tokens = messagePattern.tokens;
+  // Finalizes the handshake by calling Split and assigning the proper Cipher States to users
+  finalizeHandshake(): HandshakeResult {
+    const hsResult = new HandshakeResult();
 
-    // We get if the user is reading or writing the input handshake message
-    const { reading, writing } = this.getReadingWritingState(direction);
+    // Noise specification, Section 5:
+    // Processing the final handshake message returns two CipherState objects,
+    // the first for encrypting transport messages from initiator to responder,
+    // and the second for messages in the other direction.
 
-    // I make a copy of the handshake message so that I can easily delete processed PKs without using iterators/counters
-    // (Possibly) non-empty if reading
-    const inHandshakeMessage = inputHandshakeMessage;
+    // We call Split()
+    const { cs1, cs2 } = this.hs.ss.split();
 
-    // The party's output public keys
-    // (Possibly) non-empty if writing
-    const outHandshakeMessage: Array<NoisePublicKey> = [];
+    // Optional: We derive a secret for the nametag derivation
+    const { nms1, nms2 } = this.hs.genMessageNametagSecrets();
 
-    // In currPK we store the currently processed public key from the handshake message
-    let currPK: NoisePublicKey;
+    // We assign the proper Cipher States
+    if (this.hs.initiator) {
+      hsResult.csOutbound = cs1;
+      hsResult.csInbound = cs2;
+      // and nametags secrets
+      hsResult.nametagsInbound.secret = nms1;
+      hsResult.nametagsOutbound.secret = nms2;
+    } else {
+      hsResult.csOutbound = cs2;
+      hsResult.csInbound = cs1;
+      // and nametags secrets
+      hsResult.nametagsInbound.secret = nms2;
+      hsResult.nametagsOutbound.secret = nms1;
+    }
 
-    // We process each message pattern token
-    for (const token of tokens) {
-      switch (token) {
-        case NoiseTokens.e:
-          // If user is reading the "s" token
-          if (reading) {
-            console.trace("noise read e");
+    // We initialize the message nametags inbound/outbound buffers
+    hsResult.nametagsInbound.initNametagsBuffer();
+    hsResult.nametagsOutbound.initNametagsBuffer();
 
-            // We expect an ephemeral key, so we attempt to read it (next PK to process will always be at index 0 of preMessagePKs)
-            if (inHandshakeMessage.length > 0) {
-              currPK = inHandshakeMessage[0];
-            } else {
-              throw "noise read e, expected a public key";
-            }
+    // We store the optional fields rs and h
+    hsResult.rs = this.hs.rs!;
+    hsResult.h = this.hs.ss.h;
 
-            // We check if current key is encrypted or not
-            // Note: by specification, ephemeral keys should always be unencrypted. But we support encrypted ones.
-            if (currPK.flag == 0) {
-              // Unencrypted Public Key
-              // Sets re and calls MixHash(re.public_key).
-              this.re = intoCurve25519Key(currPK.pk);
-              this.ss.mixHash(this.re);
+    return hsResult;
+  }
 
-              // The following is out of specification: we call decryptAndHash for encrypted ephemeral keys, similarly as happens for (encrypted) static keys
-            } else if (currPK.flag == 1) {
-              // Encrypted public key
-              // Decrypts re, sets re and calls MixHash(re.public_key).
-              this.re = intoCurve25519Key(this.ss.decryptAndHash(currPK.pk));
-            } else {
-              throw "noise read e, incorrect encryption flag for public key";
-            }
+  // Noise specification, Section 5:
+  // Transport messages are then encrypted and decrypted by calling EncryptWithAd()
+  // and DecryptWithAd() on the relevant CipherState with zero-length associated data.
+  // If DecryptWithAd() signals an error due to DECRYPT() failure, then the input message is discarded.
+  // The application may choose to delete the CipherState and terminate the session on such an error,
+  // or may continue to attempt communications. If EncryptWithAd() or DecryptWithAd() signal an error
+  // due to nonce exhaustion, then the application must delete the CipherState and terminate the session.
 
-            // Noise specification: section 9.2
-            // In non-PSK handshakes, the "e" token in a pre-message pattern or message pattern always results
-            // in a call to MixHash(e.public_key).
-            // In a PSK handshake, all of these calls are followed by MixKey(e.public_key).
-            if (this.handshakePattern.name.indexOf("psk") > -1) {
-              this.ss.mixKey(this.re);
-            }
+  // Writes an encrypted message using the proper Cipher State
+  writeMessage(
+    hsr: HandshakeResult,
+    transportMessage: Uint8Array,
+    outboundMessageNametagBuffer: MessageNametagBuffer
+  ): PayloadV2 {
+    const payload2 = new PayloadV2();
 
-            // We delete processed public key
-            inHandshakeMessage.shift();
+    // We set the message nametag using the input buffer
+    payload2.messageNametag = outboundMessageNametagBuffer.pop();
 
-            // If user is writing the "e" token
-          } else if (writing) {
-            console.trace("noise write e");
+    // According to 35/WAKU2-NOISE RFC, no Handshake protocol information is sent when exchanging messages
+    // This correspond to setting protocol-id to 0
+    payload2.protocolId = 0;
+    // We pad the transport message
+    const paddedTransportMessage = pkcs7.pad(
+      transportMessage,
+      NoisePaddingBlockSize
+    );
+    // Encryption is done with zero-length associated data as per specification
+    payload2.transportMessage = hsr.csOutbound!.encryptWithAd(
+      payload2.messageNametag,
+      paddedTransportMessage
+    );
 
-            // We generate a new ephemeral keypair
-            this.e = generateX25519KeyPair();
+    return payload2;
+  }
 
-            // We update the state
-            this.ss.mixHash(this.e.publicKey);
+  // Reads an encrypted message using the proper Cipher State
+  // Decryption is attempted only if the input PayloadV2 has a messageNametag equal to the one expected
+  readMessage(
+    hsr: HandshakeResult,
+    readPayload2: PayloadV2,
+    inboundMessageNametagBuffer: MessageNametagBuffer
+  ): Uint8Array {
+    // The output decrypted message
+    let message = new Uint8Array();
 
-            // Noise specification: section 9.2
-            // In non-PSK handshakes, the "e" token in a pre-message pattern or message pattern always results
-            // in a call to MixHash(e.public_key).
-            // In a PSK handshake, all of these calls are followed by MixKey(e.public_key).
-            if (this.handshakePattern.name.indexOf("psk") > -1) {
-              this.ss.mixKey(this.e.publicKey);
-            }
+    // If the message nametag does not correspond to the nametag expected in the inbound message nametag buffer
+    // an error is raised (to be handled externally, i.e. re-request lost messages, discard, etc.)
+    const nametagIsOk = inboundMessageNametagBuffer.checkNametag(
+      readPayload2.messageNametag
+    );
+    if (!nametagIsOk) {
+      throw "nametag is not ok";
+    }
 
-            // We add the ephemeral public key to the Waku payload
-            outHandshakeMessage.push(NoisePublicKey.to(this.e.publicKey));
-          }
-          break;
-
-        case NoiseTokens.s:
-          // If user is reading the "s" token
-          if (reading) {
-            console.trace("noise read s");
-
-            // We expect a static key, so we attempt to read it (next PK to process will always be at index 0 of preMessagePKs)
-            if (inHandshakeMessage.length > 0) {
-              currPK = inHandshakeMessage[0];
-            } else {
-              throw "noise read s, expected a public key";
-            }
-
-            // We check if current key is encrypted or not
-            if (currPK.flag == 0) {
-              // Unencrypted Public Key
-              // Sets re and calls MixHash(re.public_key).
-              this.rs = intoCurve25519Key(currPK.pk);
-              this.ss.mixHash(this.rs);
-            } else if (currPK.flag == 1) {
-              // Encrypted public key
-              // Decrypts rs, sets rs and calls MixHash(rs.public_key).
-              this.rs = intoCurve25519Key(this.ss.decryptAndHash(currPK.pk));
-            } else {
-              throw "noise read s, incorrect encryption flag for public key";
-            }
-
-            // We delete processed public key
-            inHandshakeMessage.shift();
-
-            // If user is writing the "s" token
-          } else if (writing) {
-            console.trace("noise write s");
-
-            // If the local static key is not set (the handshake state was not properly initialized), we raise an error
-            if (!this.s) {
-              throw "static key not set";
-            }
-
-            // We encrypt the public part of the static key in case a key is set in the Cipher State
-            // That is, encS may either be an encrypted or unencrypted static key.
-            const encS = this.ss.encryptAndHash(this.s.publicKey);
-
-            // We add the (encrypted) static public key to the Waku payload
-            // Note that encS = (Enc(s) || tag) if encryption key is set, otherwise encS = s.
-            // We distinguish these two cases by checking length of encryption and we set the proper encryption flag
-            if (encS.length > Curve25519KeySize) {
-              outHandshakeMessage.push(new NoisePublicKey(1, encS));
-            } else {
-              outHandshakeMessage.push(new NoisePublicKey(0, encS));
-            }
-          }
-
-          break;
-
-        case NoiseTokens.psk:
-          // If user is reading the "psk" token
-
-          console.trace("noise psk");
-
-          // Calls MixKeyAndHash(psk)
-          this.ss.mixKeyAndHash(this.psk);
-          break;
-
-        case NoiseTokens.ee:
-          // If user is reading the "ee" token
-
-          console.trace("noise dh ee");
-
-          // If local and/or remote ephemeral keys are not set, we raise an error
-          if (!this.e || !this.re) {
-            throw "local or remote ephemeral key not set";
-          }
-
-          // Calls MixKey(DH(e, re)).
-          this.ss.mixKey(dh(this.e.privateKey, this.re));
-          break;
-
-        case NoiseTokens.es:
-          // If user is reading the "es" token
-
-          console.trace("noise dh es");
-
-          // We check if keys are correctly set.
-          // If both present, we call MixKey(DH(e, rs)) if initiator, MixKey(DH(s, re)) if responder.
-          if (this.initiator) {
-            if (!this.e || !this.rs) {
-              throw "local or remote ephemeral/static key not set";
-            }
-
-            this.ss.mixKey(dh(this.e.privateKey, this.rs));
-          } else {
-            if (!this.re || !this.s) {
-              throw "local or remote ephemeral/static key not set";
-            }
-
-            this.ss.mixKey(dh(this.s.privateKey, this.re));
-          }
-          break;
-
-        case NoiseTokens.se:
-          // If user is reading the "se" token
-
-          console.trace("noise dh se");
-
-          // We check if keys are correctly set.
-          // If both present, call MixKey(DH(s, re)) if initiator, MixKey(DH(e, rs)) if responder.
-          if (this.initiator) {
-            if (!this.s || !this.re) {
-              throw "local or remote ephemeral/static key not set";
-            }
-
-            this.ss.mixKey(dh(this.s.privateKey, this.re));
-          } else {
-            if (!this.rs || !this.e) {
-              throw "local or remote ephemeral/static key not set";
-            }
-
-            this.ss.mixKey(dh(this.e.privateKey, this.rs));
-          }
-          break;
-
-        case NoiseTokens.ss:
-          // If user is reading the "ss" token
-
-          console.trace("noise dh ss");
-
-          // If local and/or remote static keys are not set, we raise an error
-          if (!this.s || !this.rs) {
-            throw "local or remote static key not set";
-          }
-
-          // Calls MixKey(DH(s, rs)).
-          this.ss.mixKey(dh(this.s.privateKey, this.rs));
-          break;
+    // At this point the messageNametag matches the expected nametag.
+    // According to 35/WAKU2-NOISE RFC, no Handshake protocol information is sent when exchanging messages
+    if (readPayload2.protocolId == 0) {
+      // On application level we decide to discard messages which fail decryption, without raising an error
+      try {
+        // Decryption is done with messageNametag as associated data
+        const paddedMessage = hsr.csInbound!.decryptWithAd(
+          readPayload2.messageNametag,
+          readPayload2.transportMessage
+        );
+        // We unpad the decrypted message
+        message = pkcs7.unpad(paddedMessage);
+        // The message successfully decrypted, we can delete the first element of the inbound Message Nametag Buffer
+        inboundMessageNametagBuffer.delete(1);
+      } catch (err) {
+        console.debug(
+          "A read message failed decryption. Returning empty message as plaintext."
+        );
+        message = new Uint8Array();
       }
     }
 
-    return outHandshakeMessage;
+    return message;
   }
 }
