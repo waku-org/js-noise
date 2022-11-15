@@ -4,8 +4,12 @@ import { expect } from "chai";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { chaCha20Poly1305Encrypt, dh, generateX25519KeyPair } from "./crypto";
-import { CipherState } from "./noise";
+import { Handshake, HandshakeStepResult } from "./handshake";
+import { CipherState, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
+import { NoiseHandshakePatterns } from "./patterns";
+import { MessageNametagBuffer } from "./payload";
+import { NoisePublicKey } from "./publickey";
 
 function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {
   const randomCipherState = new CipherState();
@@ -14,7 +18,13 @@ function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {
   return randomCipherState;
 }
 
+function c(input: Uint8Array): Uint8Array {
+  return new Uint8Array(input);
+}
+
 describe("js-noise", () => {
+  const rng = new HMACDRBG();
+
   it("Noise State Machine: Diffie-Hellman operation", function () {
     const aliceKey = generateX25519KeyPair();
     const bobKey = generateX25519KeyPair();
@@ -28,8 +38,6 @@ describe("js-noise", () => {
   });
 
   it("Noise State Machine: Cipher State primitives", function () {
-    const rng = new HMACDRBG();
-
     // We generate a random Cipher State, associated data ad and plaintext
     let cipherState = randomCipherState(rng);
     let nonceValue = Math.floor(Math.random() * MAX_NONCE);
@@ -104,12 +112,7 @@ describe("js-noise", () => {
     plaintext = randomBytes(128, rng);
 
     // We perform encryption using the Cipher State key, NonceMax and ad
-    ciphertext = chaCha20Poly1305Encrypt(
-      plaintext,
-      cipherState.getNonce().getBytes(),
-      ad,
-      cipherState.getKey()
-    );
+    ciphertext = chaCha20Poly1305Encrypt(plaintext, cipherState.getNonce().getBytes(), ad, cipherState.getKey());
 
     // At this point ciphertext is a proper encryption of the original plaintext obtained with nonce equal to NonceMax
     // We can now test if decryption fails with a NoiseNonceMaxError error. Any subsequent decryption call over the Cipher State should fail similarly and leave the nonce unchanged
@@ -123,6 +126,505 @@ describe("js-noise", () => {
       }
 
       expect(cipherState.getNonce().getUint64()).to.be.equals(MAX_NONCE + 1);
+    }
+  });
+
+  it("Noise State Machine: Cipher State primitives", function () {
+    // We select one supported handshake pattern and we initialize a symmetric state
+    const hsPattern = NoiseHandshakePatterns.XX;
+    let symmetricState = new SymmetricState(hsPattern);
+
+    // We get all the Symmetric State field
+    let cs = symmetricState.getCipherState().clone(); // Cipher State
+    let ck = c(symmetricState.getChainingKey()); // chaining key
+    let h = c(symmetricState.getHandshakeHash()); // handshake hash
+
+    // When a Symmetric state is initialized, handshake hash and chaining key are (byte-wise) equal
+    expect(uint8ArrayEquals(h, ck)).to.be.true;
+
+    // mixHash
+    // ==========
+
+    // We generate a random byte sequence and execute a mixHash over it
+    symmetricState.mixHash(rng.randomBytes(128));
+
+    // mixHash changes only the handshake hash value of the Symmetric state
+    expect(cs.equals(symmetricState.getCipherState())).to.be.true;
+    expect(uint8ArrayEquals(symmetricState.getChainingKey(), ck)).to.be.true;
+    expect(uint8ArrayEquals(symmetricState.getHandshakeHash(), h)).to.be.false;
+
+    // We update test values
+    h = c(symmetricState.getHandshakeHash());
+
+    // mixKey
+    // ==========
+
+    // We generate random input key material and we execute mixKey
+    let inputKeyMaterial = rng.randomBytes(128);
+    symmetricState.mixKey(inputKeyMaterial);
+
+    // mixKey changes the Symmetric State's chaining key and encryption key of the embedded Cipher State
+    // It further sets to 0 the nonce of the embedded Cipher State
+    expect(uint8ArrayEquals(cs.getKey(), symmetricState.cs.getKey())).to.be.false;
+    expect(symmetricState.getCipherState().getNonce().equals(new Nonce())).to.be.true;
+    expect(cs.equals(symmetricState.getCipherState())).to.be.false;
+    expect(uint8ArrayEquals(symmetricState.getChainingKey(), ck)).to.be.false;
+    expect(uint8ArrayEquals(symmetricState.getHandshakeHash(), h)).to.be.true;
+
+    // We update test values
+    cs = symmetricState.getCipherState().clone();
+    ck = c(symmetricState.getChainingKey());
+
+    // mixKeyAndHash
+    // ==========
+
+    // We generate random input key material and we execute mixKeyAndHash
+    inputKeyMaterial = rng.randomBytes(128);
+    symmetricState.mixKeyAndHash(inputKeyMaterial);
+
+    // mixKeyAndHash executes a mixKey and a mixHash using the input key material
+    // All Symmetric State's fields are updated
+    expect(cs.equals(symmetricState.getCipherState())).to.be.false;
+    expect(uint8ArrayEquals(symmetricState.getChainingKey(), ck)).to.be.false;
+    expect(uint8ArrayEquals(symmetricState.getHandshakeHash(), h)).to.be.false;
+
+    // We update test values
+    cs = symmetricState.getCipherState().clone();
+    ck = c(symmetricState.getChainingKey());
+    h = c(symmetricState.getHandshakeHash());
+
+    // encryptAndHash and decryptAndHash
+    // =========
+
+    // We store the initial symmetricState in order to correctly perform decryption
+    const initialSymmetricState = symmetricState.clone();
+
+    // We generate random plaintext and we execute encryptAndHash
+    const plaintext = rng.randomBytes(128);
+    const nonce = symmetricState.getCipherState().getNonce().clone();
+    const ciphertext = symmetricState.encryptAndHash(plaintext);
+    // encryptAndHash combines encryptWithAd and mixHash over the ciphertext (encryption increases the nonce of the embedded Cipher State but does not change its key)
+    // We check if only the handshake hash value and the Symmetric State changed accordingly
+    expect(cs.equals(symmetricState.getCipherState())).to.be.false;
+    expect(uint8ArrayEquals(cs.getKey(), symmetricState.getCipherState().getKey())).to.be.true;
+    expect(symmetricState.getCipherState().getNonce().getUint64()).to.be.equals(nonce.getUint64() + 1);
+    expect(uint8ArrayEquals(ck, symmetricState.getChainingKey())).to.be.true;
+    expect(uint8ArrayEquals(h, symmetricState.getHandshakeHash())).to.be.false;
+
+    // We restore the symmetric State to its initial value to test decryption
+    symmetricState = initialSymmetricState;
+
+    // We execute decryptAndHash over the ciphertext
+    const decrypted = symmetricState.decryptAndHash(ciphertext);
+    // decryptAndHash combines decryptWithAd and mixHash over the ciphertext (encryption increases the nonce of the embedded Cipher State but does not change its key)
+    // We check if only the handshake hash value and the Symmetric State changed accordingly
+    // We further check if decryption corresponds to the original plaintext
+    expect(cs.equals(symmetricState.getCipherState())).to.be.false;
+    expect(uint8ArrayEquals(cs.getKey(), symmetricState.getCipherState().getKey())).to.be.true;
+    expect(symmetricState.getCipherState().getNonce().getUint64()).to.be.equals(nonce.getUint64() + 1);
+    expect(uint8ArrayEquals(ck, symmetricState.getChainingKey())).to.be.true;
+    expect(uint8ArrayEquals(h, symmetricState.getHandshakeHash())).to.be.false;
+    expect(uint8ArrayEquals(decrypted, plaintext)).to.be.true;
+
+    // split
+    // ==========
+
+    // If at least one mixKey is executed (as above), ck is non-empty
+    expect(uint8ArrayEquals(symmetricState.getChainingKey(), CipherState.createEmptyKey())).to.be.false;
+
+    // When a Symmetric State's ck is non-empty, we can execute split, which creates two distinct Cipher States cs1 and cs2
+    // with non-empty encryption keys and nonce set to 0
+    const { cs1, cs2 } = symmetricState.split();
+    expect(uint8ArrayEquals(cs1.getKey(), CipherState.createEmptyKey())).to.be.false;
+    expect(uint8ArrayEquals(cs2.getKey(), CipherState.createEmptyKey())).to.be.false;
+    expect(cs1.getNonce().getUint64()).to.be.equals(0);
+    expect(cs2.getNonce().getUint64()).to.be.equals(0);
+    expect(uint8ArrayEquals(cs1.getKey(), cs2.getKey())).to.be.false;
+  });
+
+  it("Noise XX Handhshake and message encryption (extended test)", function () {
+    const hsPattern = NoiseHandshakePatterns.XX;
+
+    // We initialize Alice's and Bob's Handshake State
+    const aliceStaticKey = generateX25519KeyPair();
+    const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, initiator: true });
+
+    const bobStaticKey = generateX25519KeyPair();
+    const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey });
+
+    let sentTransportMessage: Uint8Array;
+    let aliceStep: HandshakeStepResult;
+    let bobStep: HandshakeStepResult;
+
+    // Here the handshake starts
+    // Write and read calls alternate between Alice and Bob: the handhshake progresses by alternatively calling stepHandshake for each user
+
+    // 1st step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // By being the handshake initiator, Alice writes a Waku2 payload v2 containing her handshake message
+    // and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 2nd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // At this step, Bob writes and returns a payload
+    bobStep = bobHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // While Alice reads and returns the (decrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ readPayloadV2: bobStep.payload2 });
+
+    expect(uint8ArrayEquals(aliceStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 3rd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // Similarly as in first step, Alice writes a Waku2 payload containing the handshake message and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // Note that for this handshake pattern, no more message patterns are left for processing
+    // Another call to stepHandshake would return an empty HandshakeStepResult
+    // We test that extra calls to stepHandshake do not affect parties' handshake states
+    // and that the intermediate HandshakeStepResult are empty
+    const prevAliceHS = aliceHS.clone();
+    const prevBobHS = bobHS.clone();
+
+    const bobStep1 = bobHS.stepHandshake({ transportMessage: sentTransportMessage });
+    const aliceStep1 = aliceHS.stepHandshake({ readPayloadV2: bobStep1.payload2 });
+    const aliceStep2 = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+    const bobStep2 = bobHS.stepHandshake({ readPayloadV2: aliceStep2.payload2 });
+
+    const defaultHandshakeStepResult = new HandshakeStepResult();
+
+    expect(aliceStep1.equals(defaultHandshakeStepResult)).to.be.true;
+    expect(aliceStep2.equals(defaultHandshakeStepResult)).to.be.true;
+    expect(bobStep1.equals(defaultHandshakeStepResult)).to.be.true;
+    expect(bobStep2.equals(defaultHandshakeStepResult)).to.be.true;
+    expect(aliceHS.equals(prevAliceHS)).to.be.true;
+    expect(bobHS.equals(prevBobHS)).to.be.true;
+
+    // After Handshake
+    // ==========
+
+    // We finalize the handshake to retrieve the Inbound/Outbound symmetric states
+    const aliceHSResult = aliceHS.finalizeHandshake();
+    const bobHSResult = bobHS.finalizeHandshake();
+
+    const defaultMessageNametagBuffer = new MessageNametagBuffer();
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    for (let i = 0; i < 10; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32);
+      let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+
+      // Bob writes to Alice
+      message = randomBytes(32);
+      payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+    }
+  });
+
+  it("Noise XXpsk0 Handhshake and message encryption (short test)", function () {
+    const hsPattern = NoiseHandshakePatterns.XXpsk0;
+
+    // We generate a random psk
+    const psk = randomBytes(32, rng);
+
+    // We initialize Alice's and Bob's Handshake State
+    const aliceStaticKey = generateX25519KeyPair();
+    const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, psk, initiator: true });
+
+    const bobStaticKey = generateX25519KeyPair();
+    const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, psk });
+
+    let sentTransportMessage: Uint8Array;
+    let aliceStep: HandshakeStepResult;
+    let bobStep: HandshakeStepResult;
+
+    // Here the handshake starts
+    // Write and read calls alternate between Alice and Bob: the handhshake progresses by alternatively calling stepHandshake for each user
+
+    // 1st step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // By being the handshake initiator, Alice writes a Waku2 payload v2 containing her handshake message
+    // and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 2nd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // At this step, Bob writes and returns a payload
+    bobStep = bobHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // While Alice reads and returns the (decrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ readPayloadV2: bobStep.payload2 });
+
+    expect(uint8ArrayEquals(aliceStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 3rd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // Similarly as in first step, Alice writes a Waku2 payload containing the handshake message and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // Note that for this handshake pattern, no more message patterns are left for processing
+
+    // After Handshake
+    // ==========
+
+    // We finalize the handshake to retrieve the Inbound/Outbound symmetric states
+    const aliceHSResult = aliceHS.finalizeHandshake();
+    const bobHSResult = bobHS.finalizeHandshake();
+
+    const defaultMessageNametagBuffer = new MessageNametagBuffer();
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    for (let i = 0; i < 10; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32);
+      let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+
+      // Bob writes to Alice
+      message = randomBytes(32);
+      payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+    }
+  });
+
+  it("Noise K1K1 Handhshake and message encryption (short test)", function () {
+    const hsPattern = NoiseHandshakePatterns.K1K1;
+
+    // We initialize Alice's and Bob's Handshake State
+    const aliceStaticKey = generateX25519KeyPair();
+
+    const bobStaticKey = generateX25519KeyPair();
+
+    // This handshake has the following pre-message pattern:
+    // -> s
+    // <- s
+    //   ...
+    // So we define accordingly the sequence of the pre-message public keys
+    const preMessagePKs = [NoisePublicKey.to(aliceStaticKey.publicKey), NoisePublicKey.to(bobStaticKey.publicKey)];
+
+    const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, preMessagePKs, initiator: true });
+    const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, preMessagePKs });
+
+    let sentTransportMessage: Uint8Array;
+    let aliceStep: HandshakeStepResult;
+    let bobStep: HandshakeStepResult;
+
+    // Here the handshake starts
+    // Write and read calls alternate between Alice and Bob: the handhshake progresses by alternatively calling stepHandshake for each user
+
+    // 1st step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+    // By being the handshake initiator, Alice writes a Waku2 payload v2 containing her handshake message
+    // and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 2nd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // At this step, Bob writes and returns a payload
+    bobStep = bobHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // While Alice reads and returns the (decrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ readPayloadV2: bobStep.payload2 });
+
+    expect(uint8ArrayEquals(aliceStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 3rd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // Similarly as in first step, Alice writes a Waku2 payload containing the handshake message and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // Note that for this handshake pattern, no more message patterns are left for processing
+
+    // After Handshake
+    // ==========
+
+    // We finalize the handshake to retrieve the Inbound/Outbound symmetric states
+    const aliceHSResult = aliceHS.finalizeHandshake();
+    const bobHSResult = bobHS.finalizeHandshake();
+
+    const defaultMessageNametagBuffer = new MessageNametagBuffer();
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    for (let i = 0; i < 10; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32);
+      let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+
+      // Bob writes to Alice
+      message = randomBytes(32);
+      payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+    }
+  });
+
+  it("Noise XK1 Handhshake and message encryption (short test)", function () {
+    const hsPattern = NoiseHandshakePatterns.XK1;
+
+    // We initialize Alice's and Bob's Handshake State
+    const aliceStaticKey = generateX25519KeyPair();
+    const bobStaticKey = generateX25519KeyPair();
+
+    // This handshake has the following pre-message pattern:
+    // <- s
+    //   ...
+    // So we define accordingly the sequence of the pre-message public keys
+    const preMessagePKs = [NoisePublicKey.to(bobStaticKey.publicKey)];
+
+    const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, preMessagePKs, initiator: true });
+    const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, preMessagePKs });
+
+    let sentTransportMessage: Uint8Array;
+    let aliceStep: HandshakeStepResult;
+    let bobStep: HandshakeStepResult;
+
+    // Here the handshake starts
+    // Write and read calls alternate between Alice and Bob: the handhshake progresses by alternatively calling stepHandshake for each user
+
+    // 1st step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+    // By being the handshake initiator, Alice writes a Waku2 payload v2 containing her handshake message
+    // and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 2nd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // At this step, Bob writes and returns a payload
+    bobStep = bobHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // While Alice reads and returns the (decrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ readPayloadV2: bobStep.payload2 });
+
+    expect(uint8ArrayEquals(aliceStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // 3rd step
+    // ==========
+
+    // We generate a random transport message
+    sentTransportMessage = randomBytes(32, rng);
+
+    // Similarly as in first step, Alice writes a Waku2 payload containing the handshake message and the (encrypted) transport message
+    aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage });
+
+    // Bob reads Alice's payloads, and returns the (decrypted) transport message Alice sent to him
+    bobStep = bobHS.stepHandshake({ readPayloadV2: aliceStep.payload2 });
+
+    expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage)).to.be.true;
+
+    // Note that for this handshake pattern, no more message patterns are left for processing
+
+    // After Handshake
+    // ==========
+
+    // We finalize the handshake to retrieve the Inbound/Outbound symmetric states
+    const aliceHSResult = aliceHS.finalizeHandshake();
+    const bobHSResult = bobHS.finalizeHandshake();
+
+    const defaultMessageNametagBuffer = new MessageNametagBuffer();
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    for (let i = 0; i < 10; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32);
+      let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
+
+      // Bob writes to Alice
+      message = randomBytes(32);
+      payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
+      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+
+      expect(uint8ArrayEquals(message, readMessage)).to.be.true;
     }
   });
 });

@@ -9,8 +9,7 @@ export const MIN_NONCE = 0;
 // this MAX_NONCE is still a large number of messages, so the practical effect of this is negligible.
 export const MAX_NONCE = 0xffffffff;
 
-const ERR_MAX_NONCE =
-  "Cipherstate has reached maximum n, a new handshake must be performed";
+const ERR_MAX_NONCE = "Cipherstate has reached maximum n, a new handshake must be performed";
 
 /**
  * The nonce is an uint that's increased over time.
@@ -24,11 +23,7 @@ export class Nonce {
   constructor(n = MIN_NONCE) {
     this.n = n;
     this.bytes = new Uint8Array(12);
-    this.view = new DataView(
-      this.bytes.buffer,
-      this.bytes.byteOffset,
-      this.bytes.byteLength
-    );
+    this.view = new DataView(this.bytes.buffer, this.bytes.byteOffset, this.bytes.byteLength);
     this.view.setUint32(4, n, true);
   }
 
@@ -44,6 +39,14 @@ export class Nonce {
 
   getUint64(): uint64 {
     return this.n;
+  }
+
+  clone(): Nonce {
+    return new Nonce(this.n);
+  }
+
+  equals(b: Nonce): boolean {
+    return b.n == this.n;
   }
 
   assertValue(): void {

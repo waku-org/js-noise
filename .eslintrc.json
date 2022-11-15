@@ -22,6 +22,12 @@
     "WebAssembly": true
   },
   "rules": {
+    "prettier/prettier": [
+      "error",
+      {
+        "printWidth": 120
+      }
+    ],
     "@typescript-eslint/explicit-function-return-type": [
       "error",
       {

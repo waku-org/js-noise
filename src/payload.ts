@@ -19,16 +19,8 @@ export function toMessageNametag(input: Uint8Array): MessageNametag {
 
 // Adapted from https://github.com/feross/buffer
 
-function checkInt(
-  buf: Uint8Array,
-  value: number,
-  offset: number,
-  ext: number,
-  max: number,
-  min: number
-): void {
-  if (value > max || value < min)
-    throw new RangeError('"value" argument is out of bounds');
+function checkInt(buf: Uint8Array, value: number, offset: number, ext: number, max: number, min: number): void {
+  if (value > max || value < min) throw new RangeError('"value" argument is out of bounds');
   if (offset + ext > buf.length) throw new RangeError("Index out of range");
 }
 
@@ -58,9 +50,7 @@ const writeUIntLE = function writeUIntLE(
 };
 
 export class MessageNametagBuffer {
-  buffer: Array<MessageNametag> = new Array<MessageNametag>(
-    MessageNametagBufferSize
-  );
+  buffer: Array<MessageNametag> = new Array<MessageNametag>(MessageNametagBufferSize);
   counter = 0;
   secret?: Uint8Array;
 
@@ -72,12 +62,7 @@ export class MessageNametagBuffer {
 
     if (this.secret) {
       for (let i = 0; i < this.buffer.length; i++) {
-        const counterBytesLE = writeUIntLE(
-          new Uint8Array(8),
-          this.counter,
-          0,
-          8
-        );
+        const counterBytesLE = writeUIntLE(new Uint8Array(8), this.counter, 0, 8);
         const d = hashSHA256(uint8ArrayConcat([this.secret, counterBytesLE]));
         this.buffer[i] = toMessageNametag(d);
         this.counter++;
@@ -97,9 +82,7 @@ export class MessageNametagBuffer {
 
   // Checks if the input messageNametag is contained in the input MessageNametagBuffer
   checkNametag(messageNametag: MessageNametag): boolean {
-    const index = this.buffer.findIndex((x) =>
-      uint8ArrayEquals(x, messageNametag)
-    );
+    const index = this.buffer.findIndex((x) => uint8ArrayEquals(x, messageNametag));
 
     if (index == -1) {
       console.error("Message nametag not found in buffer");
@@ -134,12 +117,7 @@ export class MessageNametagBuffer {
       }
 
       for (let i = 0; i < n; i++) {
-        const counterBytesLE = writeUIntLE(
-          new Uint8Array(8),
-          this.counter,
-          0,
-          8
-        );
+        const counterBytesLE = writeUIntLE(new Uint8Array(8), this.counter, 0, 8);
         const d = hashSHA256(uint8ArrayConcat([this.secret, counterBytesLE]));
 
         this.buffer[this.buffer.length - n + i] = toMessageNametag(d);
@@ -159,18 +137,46 @@ export class PayloadV2 {
   transportMessage: Uint8Array;
 
   constructor(
-    messageNametag?: MessageNametag,
-    protocolId?: number,
-    handshakeMessage?: Array<NoisePublicKey>,
-    transportMessage?: Uint8Array
+    messageNametag: MessageNametag = new Uint8Array(MessageNametagLength),
+    protocolId = 0,
+    handshakeMessage: Array<NoisePublicKey> = [],
+    transportMessage: Uint8Array = new Uint8Array()
   ) {
-    this.messageNametag = messageNametag
-      ? messageNametag
-      : new Uint8Array(MessageNametagLength);
-    this.protocolId = protocolId ? protocolId : 0;
-    this.handshakeMessage = handshakeMessage ? handshakeMessage : [];
-    this.transportMessage = transportMessage
-      ? transportMessage
-      : new Uint8Array();
+    this.messageNametag = messageNametag;
+    this.protocolId = protocolId;
+    this.handshakeMessage = handshakeMessage;
+    this.transportMessage = transportMessage;
+  }
+
+  clone(): PayloadV2 {
+    const r = new PayloadV2();
+    r.protocolId = this.protocolId;
+    r.transportMessage = new Uint8Array(this.transportMessage);
+    r.messageNametag = new Uint8Array(this.messageNametag);
+    for (let i = 0; i < this.handshakeMessage.length; i++) {
+      r.handshakeMessage.push(this.handshakeMessage[i].clone());
+    }
+    return r;
+  }
+
+  equals(b: PayloadV2): boolean {
+    let pkEquals = true;
+    if (this.handshakeMessage.length != b.handshakeMessage.length) {
+      pkEquals = false;
+    }
+
+    for (let i = 0; i < this.handshakeMessage.length; i++) {
+      if (!this.handshakeMessage[i].equals(b.handshakeMessage[i])) {
+        pkEquals = false;
+        break;
+      }
+    }
+
+    return (
+      uint8ArrayEquals(this.messageNametag, b.messageNametag) &&
+      this.protocolId == b.protocolId &&
+      uint8ArrayEquals(this.transportMessage, b.transportMessage) &&
+      pkEquals
+    );
   }
 }

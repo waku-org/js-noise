@@ -16,6 +16,10 @@ export class NoisePublicKey {
     this.pk = pk;
   }
 
+  clone(): NoisePublicKey {
+    return new NoisePublicKey(this.flag, new Uint8Array(this.pk));
+  }
+
   // Checks equality between two Noise public keys
   equals(k2: NoisePublicKey): boolean {
     return this.flag == k2.flag && uint8ArrayEquals(this.pk, k2.pk);

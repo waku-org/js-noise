@@ -15,7 +15,7 @@ export function hashSHA256(data: Uint8Array): Uint8Array {
 
 export function intoCurve25519Key(s: Uint8Array): bytes32 {
   if (s.length != x25519.PUBLIC_KEY_LENGTH) {
-    throw "invalid public key length";
+    throw new Error("invalid public key length");
   }
 
   return s;
@@ -51,19 +51,11 @@ export function generateX25519KeyPairFromSeed(seed: Uint8Array): KeyPair {
   };
 }
 
-export function generateX25519SharedKey(
-  privateKey: Uint8Array,
-  publicKey: Uint8Array
-): Uint8Array {
+export function generateX25519SharedKey(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array {
   return x25519.sharedKey(privateKey, publicKey);
 }
 
-export function chaCha20Poly1305Encrypt(
-  plaintext: Uint8Array,
-  nonce: Uint8Array,
-  ad: Uint8Array,
-  k: bytes32
-): bytes {
+export function chaCha20Poly1305Encrypt(plaintext: Uint8Array, nonce: Uint8Array, ad: Uint8Array, k: bytes32): bytes {
   const ctx = new ChaCha20Poly1305(k);
 
   return ctx.seal(nonce, plaintext, ad);

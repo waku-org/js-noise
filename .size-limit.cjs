@@ -1,7 +1,7 @@
 module.exports = [
   {
-    name: "RLN core",
+    name: "JS-Noice core",
     path: "bundle/index.js",
-    import: "{ RLN }",
+    import: "{ Noise }",
   },
 ];

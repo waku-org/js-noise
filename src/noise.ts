@@ -3,12 +3,7 @@ import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import type { bytes32 } from "./@types/basic.js";
-import {
-  chaCha20Poly1305Decrypt,
-  chaCha20Poly1305Encrypt,
-  getHKDF,
-  hashSHA256,
-} from "./crypto.js";
+import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt, getHKDF, hashSHA256 } from "./crypto.js";
 import { Nonce } from "./nonce.js";
 import { HandshakePattern } from "./patterns.js";
 
@@ -48,9 +43,17 @@ export class CipherState {
   // The nonce is treated as a uint64, even though the underlying `number` only has 52 safely-available bits.
   n: Nonce;
 
-  constructor(k: bytes32 = CipherState.createEmptyKey()) {
+  constructor(k: bytes32 = CipherState.createEmptyKey(), n = new Nonce()) {
     this.k = k;
-    this.n = new Nonce();
+    this.n = n;
+  }
+
+  clone(): CipherState {
+    return new CipherState(new Uint8Array(this.k), new Nonce(this.n.getUint64()));
+  }
+
+  equals(b: CipherState): boolean {
+    return uint8ArrayEquals(this.k, b.getKey()) && this.n.getUint64() == b.getNonce().getUint64();
   }
 
   // Checks if a Cipher State has an encryption key set
@@ -76,13 +79,7 @@ export class CipherState {
 
     if (this.hasKey()) {
       // If an encryption key is set in the Cipher state, we proceed with encryption
-
-      ciphertext = chaCha20Poly1305Encrypt(
-        plaintext,
-        this.n.getBytes(),
-        ad,
-        this.k
-      );
+      ciphertext = chaCha20Poly1305Encrypt(plaintext, this.n.getBytes(), ad, this.k);
       this.n.increment();
       this.n.assertValue();
 
@@ -90,9 +87,7 @@ export class CipherState {
     } else {
       // Otherwise we return the input plaintext according to specification http://www.noiseprotocol.org/noise.html#the-cipherstate-object
       ciphertext = plaintext;
-      console.debug(
-        "encryptWithAd called with no encryption key set. Returning plaintext."
-      );
+      console.debug("encryptWithAd called with no encryption key set. Returning plaintext.");
     }
 
     return ciphertext;
@@ -104,14 +99,9 @@ export class CipherState {
     this.n.assertValue();
 
     if (this.hasKey()) {
-      const plaintext = chaCha20Poly1305Decrypt(
-        ciphertext,
-        this.n.getBytes(),
-        ad,
-        this.k
-      );
+      const plaintext = chaCha20Poly1305Decrypt(ciphertext, this.n.getBytes(), ad, this.k);
       if (!plaintext) {
-        throw "decryptWithAd failed";
+        throw new Error("decryptWithAd failed");
       }
 
       this.n.increment();
@@ -121,9 +111,7 @@ export class CipherState {
     } else {
       // Otherwise we return the input ciphertext according to specification
       // http://www.noiseprotocol.org/noise.html#the-cipherstate-object
-      console.debug(
-        "decryptWithAd called with no encryption key set. Returning ciphertext."
-      );
+      console.debug("decryptWithAd called with no encryption key set. Returning ciphertext.");
       return ciphertext;
     }
   }
@@ -170,11 +158,30 @@ export class SymmetricState {
   cs: CipherState;
   ck: bytes32; // chaining key
   h: bytes32; // handshake hash
+  hsPattern: HandshakePattern;
 
   constructor(hsPattern: HandshakePattern) {
     this.h = hashProtocol(hsPattern.name);
     this.ck = this.h;
     this.cs = new CipherState();
+    this.hsPattern = hsPattern;
+  }
+
+  equals(b: SymmetricState): boolean {
+    return (
+      this.cs.equals(b.cs) &&
+      uint8ArrayEquals(this.ck, b.ck) &&
+      uint8ArrayEquals(this.h, b.h) &&
+      this.hsPattern.equals(b.hsPattern)
+    );
+  }
+
+  clone(): SymmetricState {
+    const ss = new SymmetricState(this.hsPattern);
+    ss.cs = this.cs.clone();
+    ss.ck = new Uint8Array(this.ck);
+    ss.h = new Uint8Array(this.h);
+    return ss;
   }
 
   // MixKey as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
@@ -192,9 +199,7 @@ export class SymmetricState {
   // Hashes data into a Symmetric State's handshake hash value h
   mixHash(data: Uint8Array): void {
     // We hash the previous handshake hash and input data and store the result in the Symmetric State's handshake hash value
-    this.h = hashSHA256(
-      uint8ArrayConcat([this.h, data], this.h.length + data.length)
-    );
+    this.h = hashSHA256(uint8ArrayConcat([this.h, data]));
     console.trace("mixHash", this.h);
   }
 
@@ -215,10 +220,7 @@ export class SymmetricState {
   // EncryptAndHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
   // Combines encryptWithAd and mixHash
   // Note that by setting extraAd, it is possible to pass extra additional data that will be concatenated to the ad specified by Noise (can be used to authenticate messageNametag)
-  encryptAndHash(
-    plaintext: Uint8Array,
-    extraAd: Uint8Array = new Uint8Array()
-  ): Uint8Array {
+  encryptAndHash(plaintext: Uint8Array, extraAd: Uint8Array = new Uint8Array()): Uint8Array {
     // The additional data
     const ad = uint8ArrayConcat([this.h, extraAd]);
     // Note that if an encryption key is not set yet in the Cipher state, ciphertext will be equal to plaintext
@@ -231,10 +233,7 @@ export class SymmetricState {
 
   // DecryptAndHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
   // Combines decryptWithAd and mixHash
-  decryptAndHash(
-    ciphertext: Uint8Array,
-    extraAd: Uint8Array = new Uint8Array()
-  ): Uint8Array {
+  decryptAndHash(ciphertext: Uint8Array, extraAd: Uint8Array = new Uint8Array()): Uint8Array {
     // The additional data
     const ad = uint8ArrayConcat([this.h, extraAd]);
     // Note that if an encryption key is not set yet in the Cipher state, plaintext will be equal to ciphertext

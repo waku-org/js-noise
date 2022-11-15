@@ -1,4 +1,5 @@
 // The Noise tokens appearing in Noise (pre)message patterns
+
 // as in http://www.noiseprotocol.org/noise.html#handshake-pattern-basics
 export enum NoiseTokens {
   e = "e",
@@ -47,6 +48,14 @@ export class MessagePattern {
     this.direction = direction;
     this.tokens = tokens;
   }
+
+  equals(b: MessagePattern): boolean {
+    return (
+      this.direction == b.direction &&
+      this.tokens.length === b.tokens.length &&
+      this.tokens.every((val, index) => val === b.tokens[index])
+    );
+  }
 }
 
 // The handshake pattern object. It stores the handshake protocol name, the handshake pre message patterns and the handshake message patterns
@@ -55,14 +64,24 @@ export class HandshakePattern {
   preMessagePatterns: Array<PreMessagePattern>;
   messagePatterns: Array<MessagePattern>;
 
-  constructor(
-    name: string,
-    preMessagePatterns: Array<PreMessagePattern>,
-    messagePatterns: Array<MessagePattern>
-  ) {
+  constructor(name: string, preMessagePatterns: Array<PreMessagePattern>, messagePatterns: Array<MessagePattern>) {
     this.name = name;
     this.preMessagePatterns = preMessagePatterns;
     this.messagePatterns = messagePatterns;
+  }
+
+  equals(b: HandshakePattern): boolean {
+    if (this.preMessagePatterns.length != b.preMessagePatterns.length) return false;
+    for (let i = 0; i < this.preMessagePatterns.length; i++) {
+      if (!this.preMessagePatterns[i].equals(b.preMessagePatterns[i])) return false;
+    }
+
+    if (this.messagePatterns.length != b.messagePatterns.length) return false;
+    for (let i = 0; i < this.messagePatterns.length; i++) {
+      if (!this.messagePatterns[i].equals(b.messagePatterns[i])) return false;
+    }
+
+    return this.name == b.name;
   }
 }
 
@@ -79,11 +98,7 @@ export const NoiseHandshakePatterns = {
     ],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
-      new MessagePattern(MessageDirection.l, [
-        NoiseTokens.e,
-        NoiseTokens.ee,
-        NoiseTokens.es,
-      ]),
+      new MessagePattern(MessageDirection.l, [NoiseTokens.e, NoiseTokens.ee, NoiseTokens.es]),
       new MessagePattern(MessageDirection.r, [NoiseTokens.se]),
     ]
   ),
@@ -92,53 +107,27 @@ export const NoiseHandshakePatterns = {
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.s])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
-      new MessagePattern(MessageDirection.l, [
-        NoiseTokens.e,
-        NoiseTokens.ee,
-        NoiseTokens.es,
-      ]),
+      new MessagePattern(MessageDirection.l, [NoiseTokens.e, NoiseTokens.ee, NoiseTokens.es]),
       new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se]),
     ]
   ),
-  XX: new HandshakePattern(
-    "Noise_XX_25519_ChaChaPoly_SHA256",
-    EmptyPreMessage,
-    [
-      new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
-      new MessagePattern(MessageDirection.l, [
-        NoiseTokens.e,
-        NoiseTokens.ee,
-        NoiseTokens.s,
-        NoiseTokens.es,
-      ]),
-      new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se]),
-    ]
-  ),
-  XXpsk0: new HandshakePattern(
-    "Noise_XXpsk0_25519_ChaChaPoly_SHA256",
-    EmptyPreMessage,
-    [
-      new MessagePattern(MessageDirection.r, [NoiseTokens.psk, NoiseTokens.e]),
-      new MessagePattern(MessageDirection.l, [
-        NoiseTokens.e,
-        NoiseTokens.ee,
-        NoiseTokens.s,
-        NoiseTokens.es,
-      ]),
-      new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se]),
-    ]
-  ),
+  XX: new HandshakePattern("Noise_XX_25519_ChaChaPoly_SHA256", EmptyPreMessage, [
+    new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
+    new MessagePattern(MessageDirection.l, [NoiseTokens.e, NoiseTokens.ee, NoiseTokens.s, NoiseTokens.es]),
+    new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se]),
+  ]),
+  XXpsk0: new HandshakePattern("Noise_XXpsk0_25519_ChaChaPoly_SHA256", EmptyPreMessage, [
+    new MessagePattern(MessageDirection.r, [NoiseTokens.psk, NoiseTokens.e]),
+    new MessagePattern(MessageDirection.l, [NoiseTokens.e, NoiseTokens.ee, NoiseTokens.s, NoiseTokens.es]),
+    new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se]),
+  ]),
   WakuPairing: new HandshakePattern(
     "Noise_WakuPairing_25519_ChaChaPoly_SHA256",
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.e])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e, NoiseTokens.ee]),
       new MessagePattern(MessageDirection.l, [NoiseTokens.s, NoiseTokens.es]),
-      new MessagePattern(MessageDirection.r, [
-        NoiseTokens.s,
-        NoiseTokens.se,
-        NoiseTokens.ss,
-      ]),
+      new MessagePattern(MessageDirection.r, [NoiseTokens.s, NoiseTokens.se, NoiseTokens.ss]),
     ]
   ),
 };
