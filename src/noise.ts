@@ -35,6 +35,15 @@ import { HandshakePattern } from "./patterns.js";
 #################################
 */
 
+export function createEmptyKey(): bytes32 {
+  return new Uint8Array(32);
+}
+
+export function isEmptyKey(k: bytes32): boolean {
+  const emptyKey = createEmptyKey();
+  return uint8ArrayEquals(emptyKey, k);
+}
+
 // The Cipher State as in https://noiseprotocol.org/noise.html#the-cipherstate-object
 // Contains an encryption key k and a nonce n (used in Noise as a counter)
 export class CipherState {
@@ -43,7 +52,7 @@ export class CipherState {
   // The nonce is treated as a uint64, even though the underlying `number` only has 52 safely-available bits.
   n: Nonce;
 
-  constructor(k: bytes32 = CipherState.createEmptyKey(), n = new Nonce()) {
+  constructor(k: bytes32 = createEmptyKey(), n = new Nonce()) {
     this.k = k;
     this.n = n;
   }
@@ -58,16 +67,7 @@ export class CipherState {
 
   // Checks if a Cipher State has an encryption key set
   protected hasKey(): boolean {
-    return !this.isEmptyKey(this.k);
-  }
-
-  static createEmptyKey(): bytes32 {
-    return new Uint8Array(32);
-  }
-
-  protected isEmptyKey(k: bytes32): boolean {
-    const emptyKey = CipherState.createEmptyKey();
-    return uint8ArrayEquals(emptyKey, k);
+    return !isEmptyKey(this.k);
   }
 
   // Encrypts a plaintext using key material in a Noise Cipher State

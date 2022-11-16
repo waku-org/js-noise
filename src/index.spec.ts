@@ -5,11 +5,11 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { chaCha20Poly1305Encrypt, dh, generateX25519KeyPair } from "./crypto";
 import { Handshake, HandshakeStepResult } from "./handshake";
-import { CipherState, SymmetricState } from "./noise";
+import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
 import { NoiseHandshakePatterns } from "./patterns";
 import { MessageNametagBuffer } from "./payload";
-import { NoisePublicKey } from "./publickey";
+import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
 
 function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {
   const randomCipherState = new CipherState();
@@ -22,8 +22,102 @@ function c(input: Uint8Array): Uint8Array {
   return new Uint8Array(input);
 }
 
+function randomChaChaPolyCipherState(rng: HMACDRBG): ChaChaPolyCipherState {
+  const k = rng.randomBytes(32);
+  const n = rng.randomBytes(16);
+  const ad = rng.randomBytes(32);
+  return new ChaChaPolyCipherState(k, n, ad);
+}
+
+function randomNoisePublicKey(): NoisePublicKey {
+  const keypair = generateX25519KeyPair();
+  return new NoisePublicKey(0, keypair.publicKey);
+}
+
 describe("js-noise", () => {
   const rng = new HMACDRBG();
+
+  it("ChaChaPoly Encryption/Decryption: random byte sequences", function () {
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    // We encrypt/decrypt random byte sequences
+    const plaintext = rng.randomBytes(128);
+    const ciphertext = cipherState.encrypt(plaintext);
+    const decrypted = cipherState.decrypt(ciphertext);
+
+    expect(uint8ArrayEquals(decrypted, plaintext)).to.be.true;
+  });
+
+  it("ChaChaPoly Encryption/Decryption: random byte sequences", function () {
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    // We encrypt/decrypt random byte sequences
+    const plaintext = rng.randomBytes(128);
+    const ciphertext = cipherState.encrypt(plaintext);
+    const decrypted = cipherState.decrypt(ciphertext);
+
+    expect(uint8ArrayEquals(decrypted, plaintext)).to.be.true;
+  });
+
+  it("Noise public keys: encrypt and decrypt a public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
+    const decryptedPK = NoisePublicKey.decrypt(encryptedPK, cipherState);
+
+    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
+  });
+
+  it("Noise public keys: decrypt an unencrypted  public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    const decryptedPK = NoisePublicKey.decrypt(noisePublicKey, cipherState);
+
+    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
+  });
+
+  it("Noise public keys: encrypt an encrypted public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
+    const encryptedPK2 = NoisePublicKey.encrypt(encryptedPK, cipherState);
+
+    expect(encryptedPK.equals(encryptedPK2)).to.be.true;
+  });
+
+  it("Noise public keys: encrypt, decrypt and decrypt a public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
+    const decryptedPK = NoisePublicKey.decrypt(encryptedPK, cipherState);
+    const decryptedPK2 = NoisePublicKey.decrypt(decryptedPK, cipherState);
+
+    expect(decryptedPK.equals(decryptedPK2)).to.be.true;
+  });
+
+  it("Noise public keys: serialize and deserialize an unencrypted public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const serializedNoisePublicKey = noisePublicKey.serialize();
+    const deserializedNoisePublicKey = NoisePublicKey.deserialize(serializedNoisePublicKey);
+
+    expect(noisePublicKey.equals(deserializedNoisePublicKey)).to.be.true;
+  });
+
+  it("Noise public keys: encrypt, serialize, deserialize and decrypt a public key", function () {
+    const noisePublicKey = randomNoisePublicKey();
+    const cipherState = randomChaChaPolyCipherState(rng);
+
+    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
+    const serializedNoisePublicKey = encryptedPK.serialize();
+    const deserializedNoisePublicKey = NoisePublicKey.deserialize(serializedNoisePublicKey);
+    const decryptedPK = NoisePublicKey.decrypt(deserializedNoisePublicKey, cipherState);
+
+    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
+  });
 
   it("Noise State Machine: Diffie-Hellman operation", function () {
     const aliceKey = generateX25519KeyPair();
@@ -65,7 +159,7 @@ describe("js-noise", () => {
     expect(uint8ArrayEquals(plaintext, decrypted)).to.be.true;
 
     // If a Cipher State has no key set, encryptWithAd should return the plaintext without increasing the nonce
-    cipherState.setCipherStateKey(CipherState.createEmptyKey());
+    cipherState.setCipherStateKey(createEmptyKey());
     nonce = cipherState.getNonce();
     nonceValue = nonce.getUint64();
     plaintext = randomBytes(128, rng);
@@ -75,7 +169,7 @@ describe("js-noise", () => {
     expect(cipherState.getNonce().getUint64()).to.be.equals(nonceValue);
 
     // If a Cipher State has no key set, decryptWithAd should return the ciphertext without increasing the nonce
-    cipherState.setCipherStateKey(CipherState.createEmptyKey());
+    cipherState.setCipherStateKey(createEmptyKey());
     nonce = cipherState.getNonce();
     nonceValue = nonce.getUint64();
     ciphertext = randomBytes(128, rng);
@@ -230,13 +324,13 @@ describe("js-noise", () => {
     // ==========
 
     // If at least one mixKey is executed (as above), ck is non-empty
-    expect(uint8ArrayEquals(symmetricState.getChainingKey(), CipherState.createEmptyKey())).to.be.false;
+    expect(uint8ArrayEquals(symmetricState.getChainingKey(), createEmptyKey())).to.be.false;
 
     // When a Symmetric State's ck is non-empty, we can execute split, which creates two distinct Cipher States cs1 and cs2
     // with non-empty encryption keys and nonce set to 0
     const { cs1, cs2 } = symmetricState.split();
-    expect(uint8ArrayEquals(cs1.getKey(), CipherState.createEmptyKey())).to.be.false;
-    expect(uint8ArrayEquals(cs2.getKey(), CipherState.createEmptyKey())).to.be.false;
+    expect(uint8ArrayEquals(cs1.getKey(), createEmptyKey())).to.be.false;
+    expect(uint8ArrayEquals(cs2.getKey(), createEmptyKey())).to.be.false;
     expect(cs1.getNonce().getUint64()).to.be.equals(0);
     expect(cs2.getNonce().getUint64()).to.be.equals(0);
     expect(uint8ArrayEquals(cs1.getKey(), cs2.getKey())).to.be.false;
@@ -453,7 +547,10 @@ describe("js-noise", () => {
     // <- s
     //   ...
     // So we define accordingly the sequence of the pre-message public keys
-    const preMessagePKs = [NoisePublicKey.to(aliceStaticKey.publicKey), NoisePublicKey.to(bobStaticKey.publicKey)];
+    const preMessagePKs = [
+      NoisePublicKey.fromPublicKey(aliceStaticKey.publicKey),
+      NoisePublicKey.fromPublicKey(bobStaticKey.publicKey),
+    ];
 
     const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, preMessagePKs, initiator: true });
     const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, preMessagePKs });
@@ -546,7 +643,7 @@ describe("js-noise", () => {
     // <- s
     //   ...
     // So we define accordingly the sequence of the pre-message public keys
-    const preMessagePKs = [NoisePublicKey.to(bobStaticKey.publicKey)];
+    const preMessagePKs = [NoisePublicKey.fromPublicKey(bobStaticKey.publicKey)];
 
     const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, preMessagePKs, initiator: true });
     const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, preMessagePKs });

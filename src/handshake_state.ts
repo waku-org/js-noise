@@ -393,7 +393,7 @@ export class HandshakeState {
             }
 
             // We add the ephemeral public key to the Waku payload
-            outHandshakeMessage.push(NoisePublicKey.to(this.e.publicKey));
+            outHandshakeMessage.push(NoisePublicKey.fromPublicKey(this.e.publicKey));
           }
           break;
 
