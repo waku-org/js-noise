@@ -1,13 +1,15 @@
-import { ChaCha20Poly1305 } from "@stablelib/chacha20poly1305";
+import { ChaCha20Poly1305, TAG_LENGTH } from "@stablelib/chacha20poly1305";
 import { HKDF } from "@stablelib/hkdf";
 import { hash, SHA256 } from "@stablelib/sha256";
 import * as x25519 from "@stablelib/x25519";
+import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 
 import type { bytes, bytes32 } from "./@types/basic.js";
 import type { Hkdf } from "./@types/handshake.js";
 import type { KeyPair } from "./@types/keypair.js";
 
 export const Curve25519KeySize = x25519.PUBLIC_KEY_LENGTH;
+export const ChachaPolyTagLen = TAG_LENGTH;
 
 export function hashSHA256(data: Uint8Array): Uint8Array {
   return hash(data);
@@ -85,4 +87,9 @@ export function dh(privateKey: bytes32, publicKey: bytes32): bytes32 {
     console.error(e);
     return new Uint8Array(32);
   }
+}
+
+//  Commits a public key pk for randomness r as H(pk || s)
+export function commitPublicKey(publicKey: bytes32, r: Uint8Array): bytes32 {
+  return hashSHA256(uint8ArrayConcat([publicKey, r]));
 }

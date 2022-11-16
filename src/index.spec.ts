@@ -8,7 +8,7 @@ import { Handshake, HandshakeStepResult } from "./handshake";
 import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
 import { NoiseHandshakePatterns } from "./patterns";
-import { MessageNametagBuffer } from "./payload";
+import { MessageNametagBuffer, MessageNametagLength, PayloadV2 } from "./payload";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
 
 function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {
@@ -32,6 +32,14 @@ function randomChaChaPolyCipherState(rng: HMACDRBG): ChaChaPolyCipherState {
 function randomNoisePublicKey(): NoisePublicKey {
   const keypair = generateX25519KeyPair();
   return new NoisePublicKey(0, keypair.publicKey);
+}
+
+function randomPayloadV2(rng: HMACDRBG): PayloadV2 {
+  const messageNametag = randomBytes(MessageNametagLength, rng);
+  const protocolId = Math.floor(Math.random() * 255);
+  const handshakeMessage = [randomNoisePublicKey(), randomNoisePublicKey(), randomNoisePublicKey()];
+  const transportMessage = randomBytes(128);
+  return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);
 }
 
 describe("js-noise", () => {
@@ -117,6 +125,13 @@ describe("js-noise", () => {
     const decryptedPK = NoisePublicKey.decrypt(deserializedNoisePublicKey, cipherState);
 
     expect(noisePublicKey.equals(decryptedPK)).to.be.true;
+  });
+
+  it("PayloadV2: serialize/deserialize PayloadV2 to byte sequence", function () {
+    const payload2 = randomPayloadV2(rng);
+    const serializedPayload = payload2.serialize();
+    const deserializedPayload = PayloadV2.deserialize(serializedPayload);
+    expect(deserializedPayload.equals(payload2)).to.be.true;
   });
 
   it("Noise State Machine: Diffie-Hellman operation", function () {
