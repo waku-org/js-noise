@@ -1,5 +1,7 @@
 // Adapted from https://github.com/feross/buffer
 
+import { decode, encode, fromUint8Array, toUint8Array } from "js-base64";
+
 import { bytes32 } from "./@types/basic";
 
 function checkInt(buf: Uint8Array, value: number, offset: number, ext: number, max: number, min: number): void {
@@ -60,12 +62,12 @@ export function toQr(
   ephemeralKey: bytes32,
   committedStaticKey: bytes32
 ): string {
-  const decoder = new TextDecoder("utf8");
-  let qr = window.btoa(applicationName) + ":";
-  qr += window.btoa(applicationVersion) + ":";
-  qr += window.btoa(shardId) + ":";
-  qr += window.btoa(decoder.decode(ephemeralKey)) + ":";
-  qr += window.btoa(decoder.decode(committedStaticKey));
+  let qr = encode(applicationName) + ":";
+  qr += encode(applicationVersion) + ":";
+  qr += encode(shardId) + ":";
+  qr += fromUint8Array(ephemeralKey) + ":";
+  qr += fromUint8Array(committedStaticKey);
+
   return qr;
 }
 
@@ -81,12 +83,11 @@ export function fromQr(qr: string): {
 
   if (values.length != 5) throw new Error("invalid qr string");
 
-  const encoder = new TextEncoder();
-  const applicationName = window.atob(values[0]);
-  const applicationVersion = window.atob(values[1]);
-  const shardId = window.atob(values[2]);
-  const ephemeralKey = encoder.encode(window.atob(values[3]));
-  const committedStaticKey = encoder.encode(window.atob(values[4]));
+  const applicationName = decode(values[0]);
+  const applicationVersion = decode(values[1]);
+  const shardId = decode(values[2]);
+  const ephemeralKey = toUint8Array(values[3]);
+  const committedStaticKey = toUint8Array(values[4]);
 
   return { applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey };
 }

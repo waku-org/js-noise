@@ -11,6 +11,7 @@
     }
   },
   "type": "module",
+  "repository": "https://github.com/waku-org/js-noise",
   "scripts": {
     "prepare": "husky install",
     "build": "run-s build:**",
@@ -37,8 +38,11 @@
   "engines": {
     "node": ">=16"
   },
-  "author": "",
   "license": "Apache-2.0 OR MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.2",
     "@rollup/plugin-json": "^4.1.0",
@@ -66,6 +70,7 @@
     "gh-pages": "^3.2.3",
     "husky": "^7.0.4",
     "ignore-loader": "^0.1.2",
+    "js-waku": "^0.29.0-29436ea",
     "jsdom": "^19.0.0",
     "jsdom-global": "^3.0.2",
     "karma": "^6.3.12",
@@ -114,6 +119,7 @@
     "@stablelib/random": "^1.0.2",
     "@stablelib/sha256": "^1.0.1",
     "@stablelib/x25519": "^1.0.1",
+    "js-base64": "^3.7.3",
     "pkcs7-padding": "^0.1.1",
     "uint8arraylist": "^2.3.2",
     "uint8arrays": "^4.0.2"

@@ -15,7 +15,8 @@
     "HASHLEN",
     "ciphertext",
     "preshared",
-    "libp2p"
+    "libp2p",
+    "Authcode"
   ],
   "flagWords": [],
   "ignorePaths": [
