@@ -1,9 +1,10 @@
+import { BN } from "bn.js";
 import * as pkcs7 from "pkcs7-padding";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { bytes32 } from "./@types/basic";
 import { KeyPair } from "./@types/keypair";
-//import { getHKDF } from "./crypto";
+import { getHKDFRaw } from "./crypto";
 import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state";
 import { CipherState } from "./noise";
 import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns";
@@ -158,11 +159,10 @@ export class Handshake {
 
   // Generates an 8 decimal digits authorization code using HKDF and the handshake state
   genAuthcode(): string {
-    //var output: array[1, array[8, byte]]
-    // const [output0] = getHKDF(this.hs.ss.h, new Uint8Array());
-    // let code = cast[uint64](output[0]) mod 100_000_000
-    // return $code
-    return "TODO: implement";
+    const output0 = getHKDFRaw(this.hs.ss.h, new Uint8Array(), 8);
+    const bn = new BN(output0);
+    const code = bn.mod(new BN(100_000_000));
+    return code.toString();
   }
 
   // Advances 1 step in handshake

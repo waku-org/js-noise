@@ -35,6 +35,11 @@ export function getHKDF(ck: bytes32, ikm: Uint8Array): Hkdf {
   return [k1, k2, k3];
 }
 
+export function getHKDFRaw(ck: bytes32, ikm: Uint8Array, numBytes: number): Uint8Array {
+  const hkdf = new HKDF(SHA256, ikm, ck);
+  return hkdf.expand(numBytes);
+}
+
 export function generateX25519KeyPair(): KeyPair {
   const keypair = x25519.generateKeyPair();
 
