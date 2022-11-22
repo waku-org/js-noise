@@ -272,8 +272,8 @@ export class Handshake {
     hsResult.nametagsOutbound.initNametagsBuffer();
 
     // We store the optional fields rs and h
-    hsResult.rs = this.hs.rs!;
-    hsResult.h = this.hs.ss.h;
+    hsResult.rs = new Uint8Array(this.hs.rs!);
+    hsResult.h = new Uint8Array(this.hs.ss.h);
 
     return hsResult;
   }

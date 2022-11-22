@@ -3,11 +3,16 @@ import { randomBytes } from "@stablelib/random";
 import { expect } from "chai";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
-import { NoiseHandshakeDecoder, NoiseHandshakeEncoder } from "./codec";
+import {
+  NoiseHandshakeDecoder,
+  NoiseHandshakeEncoder,
+  NoiseSecureTransferDecoder,
+  NoiseSecureTransferEncoder,
+} from "./codec";
 import { commitPublicKey, generateX25519KeyPair } from "./crypto";
 import { Handshake } from "./handshake";
 import { NoiseHandshakePatterns } from "./patterns";
-import { MessageNametagLength } from "./payload";
+import { MessageNametagBufferSize, MessageNametagLength } from "./payload";
 import { NoisePublicKey } from "./publickey";
 import { fromQr, toQr } from "./utils";
 
@@ -211,15 +216,81 @@ describe("Waku Noise Sessions", () => {
     // Secure Transfer Phase
     // ==========
 
+    //  We finalize the handshake to retrieve the Inbound/Outbound Symmetric States
+    const aliceHSResult = aliceHS.finalizeHandshake();
+    const bobHSResult = bobHS.finalizeHandshake();
+
+    const aliceEncoder = new NoiseSecureTransferEncoder(contentTopic, aliceHSResult);
+    const bobEncoder = new NoiseSecureTransferEncoder(contentTopic, bobHSResult);
+
+    const aliceDecoder = new NoiseSecureTransferDecoder(contentTopic, aliceHSResult);
+    const bobDecoder = new NoiseSecureTransferDecoder(contentTopic, bobHSResult);
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    // Note that we exchange more than the number of messages contained in the nametag buffer to test if they are filled correctly as the communication proceeds
+    for (let i = 0; i < 10 * MessageNametagBufferSize; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32, rng);
+      let encodedMsg = await aliceEncoder.encode({ payload: message });
+      let readMessageProto = await bobDecoder.decodeProto(encodedMsg!);
+      let readMessage = await bobDecoder.decode(readMessageProto!);
+
+      expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+
+      // Bob writes to Alice
+      message = randomBytes(32, rng);
+      encodedMsg = await bobEncoder.encode({ payload: message });
+      readMessageProto = await aliceDecoder.decodeProto(encodedMsg!);
+      readMessage = await aliceDecoder.decode(readMessageProto!);
+
+      expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+    }
+
     // TODO
     // TODO
     // TODO
     // TODO
     // TODO
-    // TODO
-    // TODO
-    // TODO
-    // TODO
-    // TODO
+    /*
+    // We test how nametag buffers help in detecting lost messages
+    // Alice writes two messages to Bob, but only the second is received
+    try {
+      const message = randomBytes(32, rng);
+      payload2 = aliceHSResult.writeMessage(message, aliceHSResult.nametagsOutbound);
+      message = randomBytes(32, rng);
+      payload2 = aliceHSResult.writeMessage(aliceHSResult.nametagsOutbound);
+    } catch (NoiseSomeMessagesWereLost) {
+      let readMessage = readMessage(
+        bobHSResult,
+        payload2,
+        (inboundMessageNametagBuffer = bobHSResult.nametagsInbound)
+      ).get();
+    }
+
+    // We adjust bob nametag buffer for next test (i.e. the missed message is correctly recovered)
+    bobHSResult.nametagsInbound.delete(2);
+    let message = randomBytes(32, rng);
+    payload2 = writeMessage(bobHSResult, message, (outboundMessageNametagBuffer = bobHSResult.nametagsOutbound));
+    readMessage = readMessage(
+      aliceHSResult,
+      payload2,
+      (inboundMessageNametagBuffer = aliceHSResult.nametagsInbound)
+    ).get();
+
+    expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+
+    // We test if a missing nametag is correctly detected
+    try {
+      const message = randomBytes(32, rng);
+      const payload2 = aliceHSResult.writeMessage(message, aliceHSResult.nametagsOutbound);
+      bobHSResult.nametagsInbound.delete(1);
+    } catch (NoiseMessageNametagError) {
+      let readMessage = readMessage(
+        bobHSResult,
+        payload2,
+        (inboundMessageNametagBuffer = bobHSResult.nametagsInbound)
+      ).get();
+    }
+    */
   });
 });

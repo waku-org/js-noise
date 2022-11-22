@@ -23,6 +23,12 @@ export class MessageNametagBuffer {
   counter = 0;
   secret?: Uint8Array;
 
+  constructor() {
+    for (let i = 0; i < this.buffer.length; i++) {
+      this.buffer[i] = new Uint8Array(MessageNametagLength);
+    }
+  }
+
   // Initializes the empty Message nametag buffer. The n-th nametag is equal to HKDF( secret || n )
   initNametagsBuffer(): void {
     // We default the counter and buffer fields
@@ -44,7 +50,7 @@ export class MessageNametagBuffer {
 
   pop(): MessageNametag {
     // Note that if the input MessageNametagBuffer is set to default, an all 0 messageNametag is returned
-    const messageNametag = this.buffer[0];
+    const messageNametag = new Uint8Array(this.buffer[0]);
     this.delete(1);
     return messageNametag;
   }

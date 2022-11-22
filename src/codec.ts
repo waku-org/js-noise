@@ -32,13 +32,26 @@ export class NoiseHandshakeEncoder implements Encoder {
   }
 }
 
-export class MessageV2 extends MessageV0 implements Message {
+export class NoiseHandshakeMessage extends MessageV0 implements Message {
   get payloadV2(): PayloadV2 {
     return PayloadV2.deserialize(this.payload!);
   }
 }
 
-export class NoiseHandshakeDecoder implements Decoder<MessageV2> {
+export class NoiseSecureMessage extends MessageV0 implements Message {
+  private readonly _decodedPayload: Uint8Array;
+
+  constructor(proto: proto_message.WakuMessage, decodedPayload: Uint8Array) {
+    super(proto);
+    this._decodedPayload = decodedPayload;
+  }
+
+  get payload(): Uint8Array {
+    return this._decodedPayload;
+  }
+}
+
+export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
   constructor(public contentTopic: string) {}
 
   decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
@@ -47,7 +60,7 @@ export class NoiseHandshakeDecoder implements Decoder<MessageV2> {
     return Promise.resolve(protoMessage);
   }
 
-  async decode(proto: ProtoMessage): Promise<MessageV2 | undefined> {
+  async decode(proto: ProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
     // https://github.com/status-im/js-waku/issues/921
     if (proto.version === undefined) {
       proto.version = 0;
@@ -63,7 +76,7 @@ export class NoiseHandshakeDecoder implements Decoder<MessageV2> {
       return;
     }
 
-    return new MessageV2(proto);
+    return new NoiseHandshakeMessage(proto);
   }
 }
 
@@ -82,6 +95,7 @@ export class NoiseSecureTransferEncoder implements Encoder {
       log("No payload to encrypt, skipping: ", message);
       return;
     }
+
     const preparedPayload = this.hsResult.writeMessage(message.payload, this.hsResult.nametagsOutbound);
 
     const payload = preparedPayload.serialize();
@@ -95,6 +109,35 @@ export class NoiseSecureTransferEncoder implements Encoder {
   }
 }
 
-/*
-export class NoiseSecureTransferDecoder implements Decoder<> {}
-*/
+export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
+  constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
+
+  decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
+    const protoMessage = proto_message.WakuMessage.decode(bytes);
+    log("Message decoded", protoMessage);
+    return Promise.resolve(protoMessage);
+  }
+
+  async decode(proto: ProtoMessage): Promise<NoiseSecureMessage | undefined> {
+    // https://github.com/status-im/js-waku/issues/921
+    if (proto.version === undefined) {
+      proto.version = 0;
+    }
+
+    if (proto.version !== Version) {
+      log("Failed to decode due to incorrect version, expected:", Version, ", actual:", proto.version);
+      return Promise.resolve(undefined);
+    }
+
+    if (!proto.payload) {
+      log("No payload, skipping: ", proto);
+      return;
+    }
+
+    const payloadV2 = PayloadV2.deserialize(proto.payload);
+
+    const decryptedPayload = this.hsResult.readMessage(payloadV2, this.hsResult.nametagsInbound);
+
+    return new NoiseSecureMessage(proto, decryptedPayload);
+  }
+}
