@@ -1,7 +1,7 @@
 {
   "name": "@waku/noise",
   "version": "0.0.1",
-  "description": "",
+  "description": "Browser library using Noise Protocols for Waku Payload Encryption",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.js",
   "exports": {
