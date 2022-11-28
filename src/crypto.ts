@@ -24,10 +24,7 @@ export function intoCurve25519Key(s: Uint8Array): bytes32 {
 }
 
 export function getHKDF(ck: bytes32, ikm: Uint8Array): Hkdf {
-  const hkdf = new HKDF(SHA256, ikm, ck);
-  const okmU8Array = hkdf.expand(96);
-  const okm = okmU8Array;
-
+  const okm = getHKDFRaw(ck, ikm, 96);
   const k1 = okm.subarray(0, 32);
   const k2 = okm.subarray(32, 64);
   const k3 = okm.subarray(64, 96);

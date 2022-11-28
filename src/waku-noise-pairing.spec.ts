@@ -246,51 +246,40 @@ describe("Waku Noise Sessions", () => {
       expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
     }
 
-    // TODO
-    // TODO
-    // TODO
-    // TODO
-    // TODO
-    /*
     // We test how nametag buffers help in detecting lost messages
     // Alice writes two messages to Bob, but only the second is received
+    let message = randomBytes(32, rng);
+    let payload2 = aliceHSResult.writeMessage(message);
+    message = randomBytes(32, rng);
+    payload2 = aliceHSResult.writeMessage(message);
     try {
-      const message = randomBytes(32, rng);
-      payload2 = aliceHSResult.writeMessage(message, aliceHSResult.nametagsOutbound);
-      message = randomBytes(32, rng);
-      payload2 = aliceHSResult.writeMessage(aliceHSResult.nametagsOutbound);
-    } catch (NoiseSomeMessagesWereLost) {
-      let readMessage = readMessage(
-        bobHSResult,
-        payload2,
-        (inboundMessageNametagBuffer = bobHSResult.nametagsInbound)
-      ).get();
+      bobHSResult.readMessage(payload2);
+      expect(false, "should not reach here").to.be.true;
+    } catch (err) {
+      let message;
+      if (err instanceof Error) message = err.message;
+      else message = String(err);
+      expect(message).to.be.equals("nametag is not ok");
     }
 
     // We adjust bob nametag buffer for next test (i.e. the missed message is correctly recovered)
     bobHSResult.nametagsInbound.delete(2);
-    let message = randomBytes(32, rng);
-    payload2 = writeMessage(bobHSResult, message, (outboundMessageNametagBuffer = bobHSResult.nametagsOutbound));
-    readMessage = readMessage(
-      aliceHSResult,
-      payload2,
-      (inboundMessageNametagBuffer = aliceHSResult.nametagsInbound)
-    ).get();
-
-    expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+    message = randomBytes(32, rng);
+    payload2 = bobHSResult.writeMessage(message);
+    const readMessage = aliceHSResult.readMessage(payload2);
+    expect(uint8ArrayEquals(message, readMessage)).to.be.true;
 
     // We test if a missing nametag is correctly detected
+    message = randomBytes(32, rng);
+    payload2 = aliceHSResult.writeMessage(message);
+    bobHSResult.nametagsInbound.delete(1);
     try {
-      const message = randomBytes(32, rng);
-      const payload2 = aliceHSResult.writeMessage(message, aliceHSResult.nametagsOutbound);
-      bobHSResult.nametagsInbound.delete(1);
-    } catch (NoiseMessageNametagError) {
-      let readMessage = readMessage(
-        bobHSResult,
-        payload2,
-        (inboundMessageNametagBuffer = bobHSResult.nametagsInbound)
-      ).get();
+      bobHSResult.readMessage(payload2);
+    } catch (err) {
+      let message;
+      if (err instanceof Error) message = err.message;
+      else message = String(err);
+      expect(message).to.be.equals("nametag is not ok");
     }
-    */
   });
 });

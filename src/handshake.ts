@@ -55,11 +55,14 @@ export class HandshakeResult {
   // due to nonce exhaustion, then the application must delete the CipherState and terminate the session.
 
   // Writes an encrypted message using the proper Cipher State
-  writeMessage(transportMessage: Uint8Array, outboundMessageNametagBuffer: MessageNametagBuffer): PayloadV2 {
+  writeMessage(
+    transportMessage: Uint8Array,
+    outboundMessageNametagBuffer: MessageNametagBuffer | undefined = undefined
+  ): PayloadV2 {
     const payload2 = new PayloadV2();
 
     // We set the message nametag using the input buffer
-    payload2.messageNametag = outboundMessageNametagBuffer.pop();
+    payload2.messageNametag = (outboundMessageNametagBuffer ?? this.nametagsOutbound).pop();
 
     // According to 35/WAKU2-NOISE RFC, no Handshake protocol information is sent when exchanging messages
     // This correspond to setting protocol-id to 0
@@ -74,13 +77,16 @@ export class HandshakeResult {
 
   // Reads an encrypted message using the proper Cipher State
   // Decryption is attempted only if the input PayloadV2 has a messageNametag equal to the one expected
-  readMessage(readPayload2: PayloadV2, inboundMessageNametagBuffer: MessageNametagBuffer): Uint8Array {
+  readMessage(
+    readPayload2: PayloadV2,
+    inboundMessageNametagBuffer: MessageNametagBuffer | undefined = undefined
+  ): Uint8Array {
     // The output decrypted message
     let message = new Uint8Array();
 
     // If the message nametag does not correspond to the nametag expected in the inbound message nametag buffer
     // an error is raised (to be handled externally, i.e. re-request lost messages, discard, etc.)
-    const nametagIsOk = inboundMessageNametagBuffer.checkNametag(readPayload2.messageNametag);
+    const nametagIsOk = (inboundMessageNametagBuffer ?? this.nametagsInbound).checkNametag(readPayload2.messageNametag);
     if (!nametagIsOk) {
       throw new Error("nametag is not ok");
     }
@@ -95,7 +101,7 @@ export class HandshakeResult {
         // We unpad the decrypted message
         message = pkcs7.unpad(paddedMessage);
         // The message successfully decrypted, we can delete the first element of the inbound Message Nametag Buffer
-        inboundMessageNametagBuffer.delete(1);
+        this.nametagsInbound.delete(1);
       } catch (err) {
         console.debug("A read message failed decryption. Returning empty message as plaintext.");
         message = new Uint8Array();

@@ -96,7 +96,7 @@ export class NoiseSecureTransferEncoder implements Encoder {
       return;
     }
 
-    const preparedPayload = this.hsResult.writeMessage(message.payload, this.hsResult.nametagsOutbound);
+    const preparedPayload = this.hsResult.writeMessage(message.payload);
 
     const payload = preparedPayload.serialize();
 
@@ -136,7 +136,7 @@ export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
 
     const payloadV2 = PayloadV2.deserialize(proto.payload);
 
-    const decryptedPayload = this.hsResult.readMessage(payloadV2, this.hsResult.nametagsInbound);
+    const decryptedPayload = this.hsResult.readMessage(payloadV2);
 
     return new NoiseSecureMessage(proto, decryptedPayload);
   }
