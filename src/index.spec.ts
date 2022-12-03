@@ -36,7 +36,7 @@ function randomNoisePublicKey(): NoisePublicKey {
 
 function randomPayloadV2(rng: HMACDRBG): PayloadV2 {
   const messageNametag = randomBytes(MessageNametagLength, rng);
-  const protocolId = Math.floor(Math.random() * 255);
+  const protocolId = 14;
   const handshakeMessage = [randomNoisePublicKey(), randomNoisePublicKey(), randomNoisePublicKey()];
   const transportMessage = randomBytes(128);
   return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);

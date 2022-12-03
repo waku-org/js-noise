@@ -7,6 +7,7 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { MessageNametag } from "./@types/handshake";
 import { ChachaPolyTagLen, Curve25519KeySize, hashSHA256 } from "./crypto";
+import { PayloadV2ProtocolIDs } from "./patterns";
 import { NoisePublicKey } from "./publickey";
 import { readUIntLE, writeUIntLE } from "./utils";
 
@@ -217,8 +218,12 @@ export class PayloadV2 {
     i += MessageNametagLength;
 
     // We read the Protocol ID
-    // TODO: when the list of supported protocol ID is defined, check if read protocol ID is supported
     const protocolId = payload[i];
+    const protocolName = Object.keys(PayloadV2ProtocolIDs).find((key) => PayloadV2ProtocolIDs[key] === protocolId);
+    if (protocolName === undefined) {
+      throw new Error("protocolId not found");
+    }
+
     i++;
 
     // We read the Handshake Message length (1 byte)

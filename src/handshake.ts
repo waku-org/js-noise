@@ -128,6 +128,13 @@ export interface StepHandshakeParameters {
   messageNametag?: Uint8Array;
 }
 
+export class MessageNametagError extends Error {
+  constructor(public readonly expectedNametag: Uint8Array, public readonly actualNametag: Uint8Array) {
+    super("the message nametag of the read message doesn't match the expected one");
+    this.name = "MessageNametagError";
+  }
+}
+
 export class Handshake {
   hs: HandshakeState;
   constructor({
@@ -198,12 +205,12 @@ export class Handshake {
     // If we write an answer at this handshake step
     if (writing) {
       // We initialize a payload v2 and we set proper protocol ID (if supported)
-      try {
-        hsStepResult.payload2.protocolId =
-          PayloadV2ProtocolIDs[this.hs.handshakePattern.name as keyof typeof PayloadV2ProtocolIDs];
-      } catch (err) {
+      const protocolId = PayloadV2ProtocolIDs[this.hs.handshakePattern.name];
+      if (protocolId === undefined) {
         throw new Error("handshake pattern not supported");
       }
+
+      hsStepResult.payload2.protocolId = protocolId;
 
       // We set the messageNametag and the handshake and transport messages
       hsStepResult.payload2.messageNametag = toMessageNametag(messageNametag);
@@ -218,8 +225,9 @@ export class Handshake {
       // If we read an answer during this handshake step
     } else if (reading) {
       // If the read message nametag doesn't match the expected input one we raise an error
-      if (!uint8ArrayEquals(readPayloadV2.messageNametag, toMessageNametag(messageNametag))) {
-        throw new Error("the message nametag of the read message doesn't match the expected one");
+      const expectedNametag = toMessageNametag(messageNametag);
+      if (!uint8ArrayEquals(readPayloadV2.messageNametag, expectedNametag)) {
+        throw new MessageNametagError(expectedNametag, readPayloadV2.messageNametag);
       }
 
       // We process the read public keys and (eventually decrypt) the read transport message

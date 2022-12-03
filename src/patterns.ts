@@ -118,7 +118,7 @@ export const NoiseHandshakePatterns = {
 
 // Supported Protocol ID for PayloadV2 objects
 // Protocol IDs are defined according to https://rfc.vac.dev/spec/35/#specification
-export const PayloadV2ProtocolIDs = {
+export const PayloadV2ProtocolIDs: { [id: string]: number } = {
   "": 0,
   Noise_K1K1_25519_ChaChaPoly_SHA256: 10,
   Noise_XK1_25519_ChaChaPoly_SHA256: 11,
