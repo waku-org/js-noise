@@ -50,13 +50,7 @@ export class ChaChaPolyCipherState {
 // or the encryption of the X coordinate concatenated with the authorization tag, if encrypted (this implies flag = 1)
 // Note: besides encryption, flag can be used to distinguish among multiple supported Elliptic Curves
 export class NoisePublicKey {
-  flag: number;
-  pk: Uint8Array;
-
-  constructor(flag: number, pk: Uint8Array) {
-    this.flag = flag;
-    this.pk = pk;
-  }
+  constructor(public readonly flag: number, public readonly pk: Uint8Array) {}
 
   clone(): NoisePublicKey {
     return new NoisePublicKey(this.flag, new Uint8Array(this.pk));

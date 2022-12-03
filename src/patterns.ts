@@ -21,13 +21,7 @@ export enum MessageDirection {
 // The pre message pattern consisting of a message direction and some Noise tokens, if any.
 // (if non empty, only tokens e and s are allowed: http://www.noiseprotocol.org/noise.html#handshake-pattern-basics)
 export class PreMessagePattern {
-  direction: MessageDirection;
-  tokens: Array<NoiseTokens>;
-
-  constructor(direction: MessageDirection, tokens: Array<NoiseTokens>) {
-    this.direction = direction;
-    this.tokens = tokens;
-  }
+  constructor(public readonly direction: MessageDirection, public readonly tokens: Array<NoiseTokens>) {}
 
   equals(b: PreMessagePattern): boolean {
     return (
@@ -41,13 +35,7 @@ export class PreMessagePattern {
 // The message pattern consisting of a message direction and some Noise tokens
 // All Noise tokens are allowed
 export class MessagePattern {
-  direction: MessageDirection;
-  tokens: Array<NoiseTokens>;
-
-  constructor(direction: MessageDirection, tokens: Array<NoiseTokens>) {
-    this.direction = direction;
-    this.tokens = tokens;
-  }
+  constructor(public readonly direction: MessageDirection, public readonly tokens: Array<NoiseTokens>) {}
 
   equals(b: MessagePattern): boolean {
     return (
@@ -60,15 +48,11 @@ export class MessagePattern {
 
 // The handshake pattern object. It stores the handshake protocol name, the handshake pre message patterns and the handshake message patterns
 export class HandshakePattern {
-  name: string;
-  preMessagePatterns: Array<PreMessagePattern>;
-  messagePatterns: Array<MessagePattern>;
-
-  constructor(name: string, preMessagePatterns: Array<PreMessagePattern>, messagePatterns: Array<MessagePattern>) {
-    this.name = name;
-    this.preMessagePatterns = preMessagePatterns;
-    this.messagePatterns = messagePatterns;
-  }
+  constructor(
+    public readonly name: string,
+    public readonly preMessagePatterns: Array<PreMessagePattern>,
+    public readonly messagePatterns: Array<MessagePattern>
+  ) {}
 
   equals(b: HandshakePattern): boolean {
     if (this.preMessagePatterns.length != b.preMessagePatterns.length) return false;

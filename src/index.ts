@@ -24,7 +24,7 @@ import {
 } from "./patterns";
 import { MessageNametagBuffer } from "./payload";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
-import { fromQr, toQr } from "./utils";
+import { QR } from "./qr";
 
 export { Handshake, HandshakeParameters, HandshakeResult, HandshakeStepResult, StepHandshakeParameters };
 export { generateX25519KeyPair, generateX25519KeyPairFromSeed };
@@ -41,4 +41,4 @@ export {
 export { ChaChaPolyCipherState, NoisePublicKey };
 export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
-export { fromQr, toQr };
+export { QR };

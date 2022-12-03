@@ -38,13 +38,13 @@ export class HandshakeStepResult {
 // The recipient static key rs and handshake hash values h are stored to address some possible future applications (channel-binding, session management, etc.).
 // However, are not required by Noise specifications and are thus optional
 export class HandshakeResult {
-  csOutbound?: CipherState;
-  csInbound?: CipherState;
   // Optional fields:
   nametagsInbound: MessageNametagBuffer = new MessageNametagBuffer();
   nametagsOutbound: MessageNametagBuffer = new MessageNametagBuffer();
   rs: bytes32 = new Uint8Array();
   h: bytes32 = new Uint8Array();
+
+  constructor(private csOutbound: CipherState, private csInbound: CipherState) {}
 
   // Noise specification, Section 5:
   // Transport messages are then encrypted and decrypted by calling EncryptWithAd()
@@ -70,7 +70,7 @@ export class HandshakeResult {
     // We pad the transport message
     const paddedTransportMessage = pkcs7.pad(transportMessage, NoisePaddingBlockSize);
     // Encryption is done with zero-length associated data as per specification
-    payload2.transportMessage = this.csOutbound!.encryptWithAd(payload2.messageNametag, paddedTransportMessage);
+    payload2.transportMessage = this.csOutbound.encryptWithAd(payload2.messageNametag, paddedTransportMessage);
 
     return payload2;
   }
@@ -97,7 +97,7 @@ export class HandshakeResult {
       // On application level we decide to discard messages which fail decryption, without raising an error
       try {
         // Decryption is done with messageNametag as associated data
-        const paddedMessage = this.csInbound!.decryptWithAd(readPayload2.messageNametag, readPayload2.transportMessage);
+        const paddedMessage = this.csInbound.decryptWithAd(readPayload2.messageNametag, readPayload2.transportMessage);
         // We unpad the decrypted message
         message = pkcs7.unpad(paddedMessage);
         // The message successfully decrypted, we can delete the first element of the inbound Message Nametag Buffer
@@ -245,7 +245,7 @@ export class Handshake {
 
   // Finalizes the handshake by calling Split and assigning the proper Cipher States to users
   finalizeHandshake(): HandshakeResult {
-    const hsResult = new HandshakeResult();
+    let hsResult: HandshakeResult;
 
     // Noise specification, Section 5:
     // Processing the final handshake message returns two CipherState objects,
@@ -260,14 +260,12 @@ export class Handshake {
 
     // We assign the proper Cipher States
     if (this.hs.initiator) {
-      hsResult.csOutbound = cs1;
-      hsResult.csInbound = cs2;
+      hsResult = new HandshakeResult(cs1, cs2);
       // and nametags secrets
       hsResult.nametagsInbound.secret = nms1;
       hsResult.nametagsOutbound.secret = nms2;
     } else {
-      hsResult.csOutbound = cs2;
-      hsResult.csInbound = cs1;
+      hsResult = new HandshakeResult(cs2, cs1);
       // and nametags secrets
       hsResult.nametagsInbound.secret = nms2;
       hsResult.nametagsOutbound.secret = nms1;
@@ -277,8 +275,10 @@ export class Handshake {
     hsResult.nametagsInbound.initNametagsBuffer();
     hsResult.nametagsOutbound.initNametagsBuffer();
 
+    if (!this.hs.rs) throw new Error("invalid handshake state");
+
     // We store the optional fields rs and h
-    hsResult.rs = new Uint8Array(this.hs.rs!);
+    hsResult.rs = new Uint8Array(this.hs.rs);
     hsResult.h = new Uint8Array(this.hs.ss.h);
 
     return hsResult;

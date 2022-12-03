@@ -156,11 +156,10 @@ function hashProtocol(name: string): Uint8Array {
 // Contains a Cipher State cs, the chaining key ck and the handshake hash value h
 export class SymmetricState {
   cs: CipherState;
-  ck: bytes32; // chaining key
   h: bytes32; // handshake hash
-  hsPattern: HandshakePattern;
+  private ck: bytes32; // chaining key
 
-  constructor(hsPattern: HandshakePattern) {
+  constructor(private readonly hsPattern: HandshakePattern) {
     this.h = hashProtocol(hsPattern.name);
     this.ck = this.h;
     this.cs = new CipherState();

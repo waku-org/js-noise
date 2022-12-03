@@ -34,7 +34,8 @@ export class NoiseHandshakeEncoder implements Encoder {
 
 export class NoiseHandshakeMessage extends MessageV0 implements Message {
   get payloadV2(): PayloadV2 {
-    return PayloadV2.deserialize(this.payload!);
+    if (!this.payload) throw new Error("no payload available");
+    return PayloadV2.deserialize(this.payload);
   }
 }
 

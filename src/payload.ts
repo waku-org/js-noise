@@ -19,8 +19,8 @@ export function toMessageNametag(input: Uint8Array): MessageNametag {
 }
 
 export class MessageNametagBuffer {
-  buffer: Array<MessageNametag> = new Array<MessageNametag>(MessageNametagBufferSize);
-  counter = 0;
+  private buffer: Array<MessageNametag> = new Array<MessageNametag>(MessageNametagBufferSize);
+  private counter = 0;
   secret?: Uint8Array;
 
   constructor() {
@@ -87,8 +87,8 @@ export class MessageNametagBuffer {
     if (this.secret) {
       // We rotate left the array by n
       for (let i = 0; i < n; i++) {
-        const first = this.buffer.shift()!;
-        this.buffer.push(first);
+        const first = this.buffer.shift();
+        if (first) this.buffer.push(first);
       }
 
       for (let i = 0; i < n; i++) {

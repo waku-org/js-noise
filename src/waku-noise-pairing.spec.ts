@@ -14,7 +14,7 @@ import { Handshake } from "./handshake";
 import { NoiseHandshakePatterns } from "./patterns";
 import { MessageNametagBufferSize, MessageNametagLength } from "./payload";
 import { NoisePublicKey } from "./publickey";
-import { fromQr, toQr } from "./utils";
+import { QR } from "./qr";
 
 describe("Waku Noise Sessions", () => {
   const rng = new HMACDRBG();
@@ -48,12 +48,10 @@ describe("Waku Noise Sessions", () => {
     // Out-of-band Communication
 
     // Bob prepares the QR and sends it out-of-band to Alice
-    const qr = toQr(applicationName, applicationVersion, shardId, bobEphemeralKey.publicKey, bobCommittedStaticKey);
-    const enc = new TextEncoder();
-    const qrBytes = enc.encode(qr);
+    const qr = new QR(applicationName, applicationVersion, shardId, bobEphemeralKey.publicKey, bobCommittedStaticKey);
 
     // Alice deserializes the QR code
-    const readQR = fromQr(qr);
+    const readQR = QR.fromString(qr.toString());
 
     // We check if QR serialization/deserialization works
     expect(readQR.applicationName).to.be.equals(applicationName);
@@ -76,7 +74,7 @@ describe("Waku Noise Sessions", () => {
       hsPattern,
       ephemeralKey: aliceEphemeralKey,
       staticKey: aliceStaticKey,
-      prologue: qrBytes,
+      prologue: qr.toByteArray(),
       preMessagePKs,
       initiator: true,
     });
@@ -84,7 +82,7 @@ describe("Waku Noise Sessions", () => {
       hsPattern,
       ephemeralKey: bobEphemeralKey,
       staticKey: bobStaticKey,
-      prologue: qrBytes,
+      prologue: qr.toByteArray(),
       preMessagePKs,
     });
 
