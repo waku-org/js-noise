@@ -121,7 +121,9 @@
     "@stablelib/sha256": "^1.0.1",
     "@stablelib/x25519": "^1.0.1",
     "bn.js": "^5.2.1",
+    "eventemitter3": "^5.0.0",
     "js-base64": "^3.7.3",
+    "p-event": "^5.0.1",
     "pkcs7-padding": "^0.1.1",
     "uint8arraylist": "^2.3.2",
     "uint8arrays": "^4.0.2"

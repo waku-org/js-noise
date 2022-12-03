@@ -3,15 +3,17 @@ import {
   NoiseHandshakeEncoder,
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
-} from "./codec";
-import { generateX25519KeyPair, generateX25519KeyPairFromSeed } from "./crypto";
+} from "./codec.js";
+import { generateX25519KeyPair, generateX25519KeyPairFromSeed } from "./crypto.js";
 import {
   Handshake,
   HandshakeParameters,
   HandshakeResult,
   HandshakeStepResult,
+  MessageNametagError,
   StepHandshakeParameters,
-} from "./handshake";
+} from "./handshake.js";
+import { InitiatorParameters, Receiver, ReceiverParameters, Sender, WakuPairing } from "./pairing.js";
 import {
   EmptyPreMessage,
   HandshakePattern,
@@ -21,12 +23,19 @@ import {
   NoiseTokens,
   PayloadV2ProtocolIDs,
   PreMessagePattern,
-} from "./patterns";
-import { MessageNametagBuffer } from "./payload";
-import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
-import { QR } from "./qr";
+} from "./patterns.js";
+import { MessageNametagBuffer } from "./payload.js";
+import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey.js";
+import { QR } from "./qr.js";
 
-export { Handshake, HandshakeParameters, HandshakeResult, HandshakeStepResult, StepHandshakeParameters };
+export {
+  Handshake,
+  HandshakeParameters,
+  HandshakeResult,
+  HandshakeStepResult,
+  MessageNametagError,
+  StepHandshakeParameters,
+};
 export { generateX25519KeyPair, generateX25519KeyPairFromSeed };
 export {
   EmptyPreMessage,
@@ -42,3 +51,4 @@ export { ChaChaPolyCipherState, NoisePublicKey };
 export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
 export { QR };
+export { InitiatorParameters, ReceiverParameters, Sender, Receiver, WakuPairing };
