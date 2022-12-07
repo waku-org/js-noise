@@ -78,10 +78,13 @@ async function main() {
     console.log("Initiator");
 
     const pairingObj = new noise.WakuPairing(sender, receiver, myStaticKey, pairingParameters);
+    const pExecute = pairingObj.execute(120000); // timeout after 2m
+
     confirmAuthCodeFlow(pairingObj);
+    
     try {
       console.log("executing handshake...");
-      const codecs = await pairingObj.execute();
+      const codecs = await pExecute;
       alert("Handshake completed!");
       // TODO: enable a form so users can send messages
     } catch (err) {
@@ -103,7 +106,7 @@ async function main() {
     console.log("Receiver");
 
     const pairingObj = new noise.WakuPairing(sender, receiver, myStaticKey, new noise.ReceiverParameters());
-    const pExecute = pairingObj.execute();
+    const pExecute = pairingObj.execute(120000); // timeout after 2m
 
     confirmAuthCodeFlow(pairingObj);
 
