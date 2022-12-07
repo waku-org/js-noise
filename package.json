@@ -38,6 +38,7 @@
   "engines": {
     "node": ">=16"
   },
+  "moduleResolution": "node16",
   "license": "Apache-2.0 OR MIT",
   "publishConfig": {
     "access": "public",

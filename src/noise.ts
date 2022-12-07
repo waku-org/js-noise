@@ -83,7 +83,7 @@ export class CipherState {
       this.n.increment();
       this.n.assertValue();
 
-      console.trace("encryptWithAd", ciphertext, this.n.getUint64() - 1);
+      console.debug("encryptWithAd", ciphertext, this.n.getUint64() - 1);
     } else {
       // Otherwise we return the input plaintext according to specification http://www.noiseprotocol.org/noise.html#the-cipherstate-object
       ciphertext = plaintext;
@@ -191,7 +191,7 @@ export class SymmetricState {
     // We update ck and the Cipher state's key k using the output of HDKF
     this.cs = new CipherState(tempK);
     this.ck = ck;
-    console.trace("mixKey", this.ck, this.cs.k);
+    console.debug("mixKey", this.ck, this.cs.k);
   }
 
   // MixHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
@@ -199,7 +199,7 @@ export class SymmetricState {
   mixHash(data: Uint8Array): void {
     // We hash the previous handshake hash and input data and store the result in the Symmetric State's handshake hash value
     this.h = hashSHA256(uint8ArrayConcat([this.h, data]));
-    console.trace("mixHash", this.h);
+    console.debug("mixHash", this.h);
   }
 
   // mixKeyAndHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object

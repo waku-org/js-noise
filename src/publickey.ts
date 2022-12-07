@@ -1,9 +1,9 @@
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
-import { bytes32 } from "./@types/basic";
-import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt } from "./crypto";
-import { isEmptyKey } from "./noise";
+import { bytes32 } from "./@types/basic.js";
+import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt } from "./crypto.js";
+import { isEmptyKey } from "./noise.js";
 
 // A ChaChaPoly Cipher State containing key (k), nonce (nonce) and associated data (ad)
 export class ChaChaPolyCipherState {

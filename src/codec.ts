@@ -3,8 +3,8 @@ import { proto_message } from "js-waku";
 import { Decoder, Encoder, Message, ProtoMessage } from "js-waku/lib/interfaces";
 import { MessageV0 } from "js-waku/lib/waku_message/version_0";
 
-import { HandshakeResult, HandshakeStepResult } from "./handshake";
-import { PayloadV2 } from "./payload";
+import { HandshakeResult, HandshakeStepResult } from "./handshake.js";
+import { PayloadV2 } from "./payload.js";
 
 const log = debug("waku:message:noise-encoder");
 

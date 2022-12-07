@@ -4,12 +4,12 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { bytes32 } from "./@types/basic";
 import { KeyPair } from "./@types/keypair";
-import { getHKDFRaw } from "./crypto";
-import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state";
-import { CipherState } from "./noise";
-import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns";
-import { MessageNametagBuffer, PayloadV2, toMessageNametag } from "./payload";
-import { NoisePublicKey } from "./publickey";
+import { getHKDFRaw } from "./crypto.js";
+import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state.js";
+import { CipherState } from "./noise.js";
+import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns.js";
+import { MessageNametagBuffer, PayloadV2, toMessageNametag } from "./payload.js";
+import { NoisePublicKey } from "./publickey.js";
 
 // Noise state machine
 

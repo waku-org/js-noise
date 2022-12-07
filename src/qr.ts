@@ -1,6 +1,6 @@
 import { decode, encode, fromUint8Array, toUint8Array } from "js-base64";
 
-import { bytes32 } from "./@types/basic";
+import { bytes32 } from "./@types/basic.js";
 
 export class QR {
   constructor(

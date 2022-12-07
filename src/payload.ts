@@ -5,11 +5,11 @@
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
-import { MessageNametag } from "./@types/handshake";
-import { ChachaPolyTagLen, Curve25519KeySize, hashSHA256 } from "./crypto";
-import { PayloadV2ProtocolIDs } from "./patterns";
-import { NoisePublicKey } from "./publickey";
-import { readUIntLE, writeUIntLE } from "./utils";
+import { MessageNametag } from "./@types/handshake.js";
+import { ChachaPolyTagLen, Curve25519KeySize, hashSHA256 } from "./crypto.js";
+import { PayloadV2ProtocolIDs } from "./patterns.js";
+import { NoisePublicKey } from "./publickey.js";
+import { readUIntLE, writeUIntLE } from "./utils.js";
 
 export const MessageNametagLength = 16;
 export const MessageNametagBufferSize = 50;
