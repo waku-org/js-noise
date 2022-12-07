@@ -174,7 +174,7 @@ export class Handshake {
   genAuthcode(): string {
     const output0 = getHKDFRaw(this.hs.ss.h, new Uint8Array(), 8);
     const bn = new BN(output0);
-    const code = bn.mod(new BN(100_000_000));
+    const code = bn.mod(new BN(100_000_000)).toString().padStart(8, "0");
     return code.toString();
   }
 
