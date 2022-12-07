@@ -12,26 +12,30 @@ import {
   NoiseHandshakeMessage,
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
-} from "./codec";
-import { commitPublicKey, generateX25519KeyPair } from "./crypto";
-import { Handshake, HandshakeResult, HandshakeStepResult, MessageNametagError } from "./handshake";
-import { NoiseHandshakePatterns } from "./patterns";
-import { MessageNametagLength } from "./payload";
-import { NoisePublicKey } from "./publickey";
-import { QR } from "./qr";
+} from "./codec.js";
+import { commitPublicKey, generateX25519KeyPair } from "./crypto.js";
+import { Handshake, HandshakeResult, HandshakeStepResult, MessageNametagError } from "./handshake.js";
+import { NoiseHandshakePatterns } from "./patterns.js";
+import { MessageNametagLength } from "./payload.js";
+import { NoisePublicKey } from "./publickey.js";
+import { QR } from "./qr.js";
 
 export interface Sender {
   publish(encoder: Encoder, msg: Message): Promise<void>;
 }
 
 export interface Receiver {
-  subscribe(decoder: Decoder<NoiseHandshakeMessage>): void;
+  subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void>;
 
   // next message should return messages received in a content topic
   // messages should be kept in a queue, meaning that nextMessage
   // will call pop in the queue to remove the oldest message received
   // (it's important to maintain order of received messages)
   nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage>;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const rng = new HMACDRBG();
@@ -163,7 +167,9 @@ export class WakuPairing {
         return step;
       } catch (err) {
         if (err instanceof MessageNametagError) {
-          console.error("Unexpected message nametag", err.expectedNametag, err.actualNametag);
+          console.debug("Unexpected message nametag", err.expectedNametag, err.actualNametag);
+        } else {
+          throw err;
         }
       }
     }
@@ -172,6 +178,10 @@ export class WakuPairing {
   }
 
   private async initiatorHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
+    // Subscribe to the contact content topic
+    const decoder = new NoiseHandshakeDecoder(this.contentTopic);
+    await this.receiver.subscribe(decoder);
+
     // The handshake initiator writes a Waku2 payload v2 containing the handshake message
     // and the (encrypted) transport message
     // The message is sent with a messageNametag equal to the one received through the QR code
@@ -187,9 +197,11 @@ export class WakuPairing {
 
     // We generate an authorization code using the handshake state
     // this check has to be confirmed with a user interaction, comparing auth codes in both ends
+    const confirmationPromise = this.isAuthCodeConfirmed();
+    await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-
-    const confirmed = await this.isAuthCodeConfirmed();
+    console.log("Waiting for authcode confirmation...");
+    const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
     }
@@ -228,7 +240,7 @@ export class WakuPairing {
   private async receiverHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
     const decoder = new NoiseHandshakeDecoder(this.contentTopic);
-    this.receiver.subscribe(decoder);
+    await this.receiver.subscribe(decoder);
 
     // the received reads the initiator's payloads, and returns the (decrypted) transport message the initiator sent
     // Note that the received verifies if the received payloadV2 has the expected messageNametag set
@@ -236,13 +248,14 @@ export class WakuPairing {
 
     const initiatorCommittedStaticKey = new Uint8Array(hsStep.transportMessage);
 
+    const confirmationPromise = this.isAuthCodeConfirmed();
+    await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-
-    const confirmed = await this.isAuthCodeConfirmed();
+    console.log("Waiting for authcode confirmation...");
+    const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
     }
-
     // 2nd step
     // <- sB, eAsB    {r}
     // Receiver writes and returns a payload

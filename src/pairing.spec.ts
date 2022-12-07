@@ -31,8 +31,11 @@ describe("js-noise: pairing object", () => {
   };
   const decoderMap: { [key: string]: Decoder<NoiseHandshakeMessage> } = {};
   const receiver = {
-    subscribe(decoder: Decoder<NoiseHandshakeMessage>): void {
-      decoderMap[decoder.contentTopic] = decoder;
+    subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void> {
+      return new Promise((resolve) => {
+        decoderMap[decoder.contentTopic] = decoder;
+        resolve();
+      });
     },
     async nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage> {
       const msg = await pEvent(msgEmitter, contentTopic);
