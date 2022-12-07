@@ -63,6 +63,7 @@ export class WakuPairing {
   private qrMessageNameTag: Uint8Array;
   private authCode?: string;
   private started = false;
+  private handshakeResult: HandshakeResult | undefined;
 
   private eventEmitter = new EventEmitter();
 
@@ -230,11 +231,11 @@ export class WakuPairing {
     await this.sender.publish(encoder, {});
 
     // Secure Transfer Phase
-    const hsResult = this.handshake.finalizeHandshake();
+    this.handshakeResult = this.handshake.finalizeHandshake();
 
     this.eventEmitter.emit("pairingComplete");
 
-    return this.getSecureCodec(hsResult);
+    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
   }
 
   private async receiverHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
@@ -283,18 +284,28 @@ export class WakuPairing {
     }
 
     // Secure Transfer Phase
-    const hsResult = this.handshake.finalizeHandshake();
+    this.handshakeResult = this.handshake.finalizeHandshake();
 
     this.eventEmitter.emit("pairingComplete");
 
-    return this.getSecureCodec(hsResult);
+    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
   }
 
-  private getSecureCodec(hsResult: HandshakeResult): [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder] {
-    const secureEncoder = new NoiseSecureTransferEncoder(this.contentTopic, hsResult);
-    const secureDecoder = new NoiseSecureTransferDecoder(this.contentTopic, hsResult);
+  static getSecureCodec(
+    contentTopic: string,
+    hsResult: HandshakeResult
+  ): [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder] {
+    const secureEncoder = new NoiseSecureTransferEncoder(contentTopic, hsResult);
+    const secureDecoder = new NoiseSecureTransferDecoder(contentTopic, hsResult);
 
     return [secureEncoder, secureDecoder];
+  }
+
+  public getHandshakeResult(): HandshakeResult {
+    if (!this.handshakeResult) {
+      throw new Error("handshake is not complete");
+    }
+    return this.handshakeResult;
   }
 
   async execute(timeoutMs = 30000): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {

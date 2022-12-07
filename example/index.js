@@ -1,12 +1,13 @@
 import { createLightNode } from "js-waku/lib/create_waku";
 import { waitForRemotePeer } from "js-waku/lib/wait_for_remote_peer";
-import * as noise from "@waku/js-noise";
+import * as noise from "@waku/noise";
 import QRCode from "qrcode";
 // TODO: Get rid of these
 import hexToArrayBuffer from "hex-to-array-buffer";
 import arrayBufferToHex from "array-buffer-to-hex";
+import { WakuPairing } from "@waku/noise";
 
-function getPairingInfo() {
+function getPairingInfofromUrl() {
   const urlParts = window.location.href.split("?");
   if (urlParts.length < 2) return undefined;
 
@@ -72,7 +73,7 @@ async function main() {
 
   const myStaticKey = noise.generateX25519KeyPair();
 
-  const pairingParameters = getPairingInfo();
+  const pairingParameters = getPairingInfofromUrl();
   if (pairingParameters) {
     console.log("Initiator");
 
@@ -86,6 +87,18 @@ async function main() {
     } catch (err) {
       alert(err);
     }
+
+    // The information needs to be backed up to decrypt messages sent with
+    // codecs generated with the handshake
+    const contentTopic = pairingObj.contentTopic;
+    const handshakeResult = pairingObj.getHandshakeResult();
+
+    // This information should not be printed, it's done
+    // to see the information in the dev console
+    console.log("HandshakeResult", handshakeResult);
+
+    // To restore the codecs:
+    const codecs = WakuPairing.getSecureCodec(contentTopic, handshakeResult);
   } else {
     console.log("Receiver");
 
@@ -100,7 +113,7 @@ async function main() {
     const qrString = arrayBufferToHex(pInfo.qrMessageNameTag) + ":" + pInfo.qrCode;
     const qrURL = window.location.href + "?" + encodeURIComponent(qrString);
 
-    console.log("Generating QR...")
+    console.log("Generating QR...");
     QRCode.toCanvas(document.getElementById("qrCanvas"), qrURL, (error) => {
       if (error) console.error(error);
     });
@@ -122,6 +135,18 @@ async function main() {
       // TODO: handle timeout
       alert(err);
     }
+
+    // The information needs to be backed up to decrypt messages sent with
+    // codecs generated with the handshake
+    const contentTopic = pairingObj.contentTopic;
+    const handshakeResult = pairingObj.getHandshakeResult();
+
+    // This information should not be printed, it's done
+    // to see the information in the dev console
+    console.log("HandshakeResult", handshakeResult);
+
+    // To restore the codecs:
+    const codecs = WakuPairing.getSecureCodec(contentTopic, handshakeResult);
   }
 }
 main();
