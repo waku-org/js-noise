@@ -135,10 +135,13 @@ export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
       return;
     }
 
-    const payloadV2 = PayloadV2.deserialize(proto.payload);
-
-    const decryptedPayload = this.hsResult.readMessage(payloadV2);
-
-    return new NoiseSecureMessage(proto, decryptedPayload);
+    try {
+      const payloadV2 = PayloadV2.deserialize(proto.payload);
+      const decryptedPayload = this.hsResult.readMessage(payloadV2);
+      return new NoiseSecureMessage(proto, decryptedPayload);
+    } catch (err) {
+      log("could not decode message ", err);
+      return;
+    }
   }
 }

@@ -8,7 +8,7 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { NoiseHandshakeMessage } from "./codec";
 import { generateX25519KeyPair } from "./crypto";
-import { ReceiverParameters, WakuPairing } from "./pairing";
+import { ResponderParameters, WakuPairing } from "./pairing";
 import { MessageNametagBufferSize } from "./payload";
 
 describe("js-noise: pairing object", () => {
@@ -30,7 +30,7 @@ describe("js-noise: pairing object", () => {
     },
   };
   const decoderMap: { [key: string]: Decoder<NoiseHandshakeMessage> } = {};
-  const receiver = {
+  const responder = {
     subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void> {
       return new Promise((resolve) => {
         decoderMap[decoder.contentTopic] = decoder;
@@ -42,6 +42,10 @@ describe("js-noise: pairing object", () => {
       const decodedMessage = await decoderMap[contentTopic].decode(msg);
       return decodedMessage!;
     },
+    async stop(contentTopic: string): Promise<void> {
+      // Do nothing. This is just a simulation
+      console.debug("stopping subscription to", contentTopic);
+    },
   };
   // =================
 
@@ -49,15 +53,15 @@ describe("js-noise: pairing object", () => {
     const bobStaticKey = generateX25519KeyPair();
     const aliceStaticKey = generateX25519KeyPair();
 
-    const recvParameters = new ReceiverParameters();
-    const bobPairingObj = new WakuPairing(sender, receiver, bobStaticKey, recvParameters);
+    const recvParameters = new ResponderParameters();
+    const bobPairingObj = new WakuPairing(sender, responder, bobStaticKey, recvParameters);
     const bobExecP1 = bobPairingObj.execute();
 
     // Confirmation is done by manually
     confirmAuthCodeFlow(bobPairingObj, true);
 
     const initParameters = bobPairingObj.getPairingInfo();
-    const alicePairingObj = new WakuPairing(sender, receiver, aliceStaticKey, initParameters);
+    const alicePairingObj = new WakuPairing(sender, responder, aliceStaticKey, initParameters);
     const aliceExecP1 = alicePairingObj.execute();
 
     // Confirmation is done manually
@@ -92,8 +96,8 @@ describe("js-noise: pairing object", () => {
   });
 
   it("should timeout", async function () {
-    const bobPairingObj = new WakuPairing(sender, receiver, generateX25519KeyPair(), new ReceiverParameters());
-    const alicePairingObj = new WakuPairing(sender, receiver, generateX25519KeyPair(), bobPairingObj.getPairingInfo());
+    const bobPairingObj = new WakuPairing(sender, responder, generateX25519KeyPair(), new ResponderParameters());
+    const alicePairingObj = new WakuPairing(sender, responder, generateX25519KeyPair(), bobPairingObj.getPairingInfo());
 
     const bobExecP1 = bobPairingObj.execute(1000);
     const aliceExecP1 = alicePairingObj.execute(1000);
