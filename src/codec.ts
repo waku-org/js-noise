@@ -6,7 +6,7 @@ import { MessageV0 } from "js-waku/lib/waku_message/version_0";
 import { HandshakeResult, HandshakeStepResult } from "./handshake.js";
 import { PayloadV2 } from "./payload.js";
 
-const log = debug("waku:message:noise-encoder");
+const log = debug("waku:message:noise-codec");
 
 const OneMillion = BigInt(1_000_000);
 

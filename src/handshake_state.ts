@@ -1,3 +1,4 @@
+import debug from "debug";
 import * as pkcs7 from "pkcs7-padding";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
@@ -8,6 +9,8 @@ import { Curve25519KeySize, dh, generateX25519KeyPair, getHKDF, intoCurve25519Ke
 import { SymmetricState } from "./noise.js";
 import { EmptyPreMessage, HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
+
+const log = debug("waku:noise:handshake-state");
 
 // The padding blocksize of  a transport message
 export const NoisePaddingBlockSize = 248;
@@ -208,7 +211,7 @@ export class HandshakeState {
 
             // If user is reading the "e" token
             if (reading) {
-              console.debug("noise pre-message read e");
+              log("noise pre-message read e");
 
               // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
               if (currPK.flag == 0) {
@@ -220,7 +223,7 @@ export class HandshakeState {
               }
               // If user is writing the "e" token
             } else if (writing) {
-              console.debug("noise pre-message write e");
+              log("noise pre-message write e");
 
               // When writing, the user is sending a public key,
               // We check that the public part corresponds to the set local key and we call MixHash(e.public_key).
@@ -252,7 +255,7 @@ export class HandshakeState {
 
             // If user is reading the "s" token
             if (reading) {
-              console.debug("noise pre-message read s");
+              log("noise pre-message read s");
 
               // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
               if (currPK.flag == 0) {
@@ -265,7 +268,7 @@ export class HandshakeState {
 
               // If user is writing the "s" token
             } else if (writing) {
-              console.debug("noise pre-message write s");
+              log("noise pre-message write s");
 
               // If writing, it means that the user is sending a public key,
               // We check that the public part corresponds to the set local key and we call MixHash(s.public_key).
@@ -345,7 +348,7 @@ export class HandshakeState {
         case NoiseTokens.e:
           // If user is reading the "s" token
           if (reading) {
-            console.debug("noise read e");
+            log("noise read e");
 
             // We expect an ephemeral key, so we attempt to read it (next PK to process will always be at index 0 of preMessagePKs)
             if (inHandshakeMessage.length > 0) {
@@ -384,7 +387,7 @@ export class HandshakeState {
 
             // If user is writing the "e" token
           } else if (writing) {
-            console.debug("noise write e");
+            log("noise write e");
 
             // We generate a new ephemeral keypair
             this.e = generateX25519KeyPair();
@@ -408,7 +411,7 @@ export class HandshakeState {
         case NoiseTokens.s:
           // If user is reading the "s" token
           if (reading) {
-            console.debug("noise read s");
+            log("noise read s");
 
             // We expect a static key, so we attempt to read it (next PK to process will always be at index 0 of preMessagePKs)
             if (inHandshakeMessage.length > 0) {
@@ -436,7 +439,7 @@ export class HandshakeState {
 
             // If user is writing the "s" token
           } else if (writing) {
-            console.debug("noise write s");
+            log("noise write s");
 
             // If the local static key is not set (the handshake state was not properly initialized), we raise an error
             if (!this.s) {
@@ -462,7 +465,7 @@ export class HandshakeState {
         case NoiseTokens.psk:
           // If user is reading the "psk" token
 
-          console.debug("noise psk");
+          log("noise psk");
 
           // Calls MixKeyAndHash(psk)
           this.ss.mixKeyAndHash(this.psk);
@@ -471,7 +474,7 @@ export class HandshakeState {
         case NoiseTokens.ee:
           // If user is reading the "ee" token
 
-          console.debug("noise dh ee");
+          log("noise dh ee");
 
           // If local and/or remote ephemeral keys are not set, we raise an error
           if (!this.e || !this.re) {
@@ -485,7 +488,7 @@ export class HandshakeState {
         case NoiseTokens.es:
           // If user is reading the "es" token
 
-          console.debug("noise dh es");
+          log("noise dh es");
 
           // We check if keys are correctly set.
           // If both present, we call MixKey(DH(e, rs)) if initiator, MixKey(DH(s, re)) if responder.
@@ -507,7 +510,7 @@ export class HandshakeState {
         case NoiseTokens.se:
           // If user is reading the "se" token
 
-          console.debug("noise dh se");
+          log("noise dh se");
 
           // We check if keys are correctly set.
           // If both present, call MixKey(DH(s, re)) if initiator, MixKey(DH(e, rs)) if responder.
@@ -529,7 +532,7 @@ export class HandshakeState {
         case NoiseTokens.ss:
           // If user is reading the "ss" token
 
-          console.debug("noise dh ss");
+          log("noise dh ss");
 
           // If local and/or remote static keys are not set, we raise an error
           if (!this.s || !this.rs) {

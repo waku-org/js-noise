@@ -1,3 +1,4 @@
+import debug from "debug";
 import { fromString as uint8ArrayFromString } from "uint8arrays";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
@@ -6,6 +7,8 @@ import type { bytes32 } from "./@types/basic.js";
 import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt, getHKDF, hashSHA256 } from "./crypto.js";
 import { Nonce } from "./nonce.js";
 import { HandshakePattern } from "./patterns.js";
+
+const log = debug("waku:noise:handshake-state");
 
 // Waku Noise Protocols for Waku Payload Encryption
 // Noise module implementing the Noise State Objects and ChaChaPoly encryption/decryption primitives
@@ -83,11 +86,11 @@ export class CipherState {
       this.n.increment();
       this.n.assertValue();
 
-      console.debug("encryptWithAd", ciphertext, this.n.getUint64() - 1);
+      log("encryptWithAd", ciphertext, this.n.getUint64() - 1);
     } else {
       // Otherwise we return the input plaintext according to specification http://www.noiseprotocol.org/noise.html#the-cipherstate-object
       ciphertext = plaintext;
-      console.debug("encryptWithAd called with no encryption key set. Returning plaintext.");
+      log("encryptWithAd called with no encryption key set. Returning plaintext.");
     }
 
     return ciphertext;
@@ -111,7 +114,7 @@ export class CipherState {
     } else {
       // Otherwise we return the input ciphertext according to specification
       // http://www.noiseprotocol.org/noise.html#the-cipherstate-object
-      console.debug("decryptWithAd called with no encryption key set. Returning ciphertext.");
+      log("decryptWithAd called with no encryption key set. Returning ciphertext.");
       return ciphertext;
     }
   }
@@ -191,7 +194,7 @@ export class SymmetricState {
     // We update ck and the Cipher state's key k using the output of HDKF
     this.cs = new CipherState(tempK);
     this.ck = ck;
-    console.debug("mixKey", this.ck, this.cs.k);
+    log("mixKey", this.ck, this.cs.k);
   }
 
   // MixHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object
@@ -199,7 +202,7 @@ export class SymmetricState {
   mixHash(data: Uint8Array): void {
     // We hash the previous handshake hash and input data and store the result in the Symmetric State's handshake hash value
     this.h = hashSHA256(uint8ArrayConcat([this.h, data]));
-    console.debug("mixHash", this.h);
+    log("mixHash", this.h);
   }
 
   // mixKeyAndHash as per Noise specification http://www.noiseprotocol.org/noise.html#the-symmetricstate-object

@@ -1,5 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
+import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { Decoder, Encoder, Message } from "js-waku/lib/interfaces";
 import { pEvent } from "p-event";
@@ -19,6 +20,8 @@ import { NoiseHandshakePatterns } from "./patterns.js";
 import { MessageNametagLength } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
+
+const log = debug("waku:noise:pairing");
 
 export interface Sender {
   publish(encoder: Encoder, msg: Message): Promise<void>;
@@ -171,7 +174,7 @@ export class WakuPairing {
         return step;
       } catch (err) {
         if (err instanceof MessageNametagError) {
-          console.debug("Unexpected message nametag", err.expectedNametag, err.actualNametag);
+          log("Unexpected message nametag", err.expectedNametag, err.actualNametag);
         } else {
           throw err;
         }
