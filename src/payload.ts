@@ -61,10 +61,10 @@ export class MessageNametagBuffer {
     const index = this.buffer.findIndex((x) => uint8ArrayEquals(x, messageNametag));
 
     if (index == -1) {
-      console.error("Message nametag not found in buffer");
+      console.debug("Message nametag not found in buffer");
       return false;
     } else if (index > 0) {
-      console.error(
+      console.debug(
         "Message nametag is present in buffer but is not the next expected nametag. One or more messages were probably lost"
       );
       return false;

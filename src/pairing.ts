@@ -24,7 +24,7 @@ export interface Sender {
   publish(encoder: Encoder, msg: Message): Promise<void>;
 }
 
-export interface Receiver {
+export interface Responder {
   subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void>;
 
   // next message should return messages received in a content topic
@@ -32,6 +32,9 @@ export interface Receiver {
   // will call pop in the queue to remove the oldest message received
   // (it's important to maintain order of received messages)
   nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage>;
+
+  // this should stop the subscription
+  stop(contentTopic: string): Promise<void>;
 }
 
 function delay(ms: number): Promise<void> {
@@ -44,7 +47,7 @@ export class InitiatorParameters {
   constructor(public readonly qrCode: string, public readonly qrMessageNameTag: Uint8Array) {}
 }
 
-export class ReceiverParameters {
+export class ResponderParameters {
   constructor(
     public readonly applicationName: string = "waku-noise-sessions",
     public readonly applicationVersion: string = "0.1",
@@ -75,9 +78,9 @@ export class WakuPairing {
 
   constructor(
     private sender: Sender,
-    private receiver: Receiver,
+    private responder: Responder,
     private myStaticKey: KeyPair,
-    pairingParameters: InitiatorParameters | ReceiverParameters,
+    pairingParameters: InitiatorParameters | ResponderParameters,
     private myEphemeralKey: KeyPair = generateX25519KeyPair()
   ) {
     this.randomFixLenVal = randomBytes(32, rng);
@@ -160,7 +163,7 @@ export class WakuPairing {
 
     while (!stopLoop) {
       try {
-        const hsMessage = await this.receiver.nextMessage(contentTopic);
+        const hsMessage = await this.responder.nextMessage(contentTopic);
         const step = this.handshake.stepHandshake({
           readPayloadV2: hsMessage.payloadV2,
           messageNametag,
@@ -181,7 +184,7 @@ export class WakuPairing {
   private async initiatorHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
     const decoder = new NoiseHandshakeDecoder(this.contentTopic);
-    await this.receiver.subscribe(decoder);
+    await this.responder.subscribe(decoder);
 
     // The handshake initiator writes a Waku2 payload v2 containing the handshake message
     // and the (encrypted) transport message
@@ -192,7 +195,7 @@ export class WakuPairing {
     });
 
     // We prepare a message from initiator's payload2
-    // At this point wakuMsg is sent over the Waku network to receiver content topic
+    // At this point wakuMsg is sent over the Waku network to responder content topic
     let encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
     await this.sender.publish(encoder, {});
 
@@ -211,12 +214,14 @@ export class WakuPairing {
     // <- sB, eAsB    {r}
     hsStep = await this.executeReadStepWithNextMessage(this.contentTopic, this.handshake.hs.toMessageNametag());
 
+    await this.responder.stop(this.contentTopic);
+
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 
-    // Initiator further checks if receiver's commitment opens to receiver's static key received
-    const expectedReceiverCommittedStaticKey = commitPublicKey(this.handshake.hs.rs, hsStep.transportMessage);
-    if (!uint8ArrayEquals(expectedReceiverCommittedStaticKey, this.qr.committedStaticKey)) {
-      throw new Error("expected committed static key does not match the receiver actual committed static key");
+    // Initiator further checks if responder's commitment opens to responder's static key received
+    const expectedResponderCommittedStaticKey = commitPublicKey(this.handshake.hs.rs, hsStep.transportMessage);
+    if (!uint8ArrayEquals(expectedResponderCommittedStaticKey, this.qr.committedStaticKey)) {
+      throw new Error("expected committed static key does not match the responder actual committed static key");
     }
 
     // 3rd step
@@ -238,10 +243,10 @@ export class WakuPairing {
     return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
   }
 
-  private async receiverHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
+  private async responderHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
     const decoder = new NoiseHandshakeDecoder(this.contentTopic);
-    await this.receiver.subscribe(decoder);
+    await this.responder.subscribe(decoder);
 
     // the received reads the initiator's payloads, and returns the (decrypted) transport message the initiator sent
     // Note that the received verifies if the received payloadV2 has the expected messageNametag set
@@ -259,25 +264,27 @@ export class WakuPairing {
     }
     // 2nd step
     // <- sB, eAsB    {r}
-    // Receiver writes and returns a payload
+    // Responder writes and returns a payload
     hsStep = this.handshake.stepHandshake({
       transportMessage: this.randomFixLenVal,
       messageNametag: this.handshake.hs.toMessageNametag(),
     });
 
-    // We prepare a Waku message from receiver's payload2
+    // We prepare a Waku message from responder's payload2
     const encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
     await this.sender.publish(encoder, {});
 
     // 3rd step
     // -> sA, sAeB, sAsB  {s}
 
-    // The receiver reads the initiator's payload sent by the initiator
+    // The responder reads the initiator's payload sent by the initiator
     hsStep = await this.executeReadStepWithNextMessage(this.contentTopic, this.handshake.hs.toMessageNametag());
+
+    await this.responder.stop(this.contentTopic);
 
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 
-    // The receiver further checks if the initiator's commitment opens to the initiator's static key received
+    // The responder further checks if the initiator's commitment opens to the initiator's static key received
     const expectedInitiatorCommittedStaticKey = commitPublicKey(this.handshake.hs.rs, hsStep.transportMessage);
     if (!uint8ArrayEquals(expectedInitiatorCommittedStaticKey, initiatorCommittedStaticKey)) {
       throw new Error("expected committed static key does not match the initiator actual committed static key");
@@ -321,12 +328,12 @@ export class WakuPairing {
         this.eventEmitter.emit("pairingTimeout");
       }, timeoutMs);
 
-      const handshakeFn = this.initiator ? this.initiatorHandshake : this.receiverHandshake;
+      const handshakeFn = this.initiator ? this.initiatorHandshake : this.responderHandshake;
       handshakeFn
         .bind(this)()
         .then(
           (response) => resolve(response),
-          (err) => reject(new Error(err))
+          (err) => reject(err)
         )
         .finally(() => clearTimeout(timer));
     });

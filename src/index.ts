@@ -13,7 +13,7 @@ import {
   MessageNametagError,
   StepHandshakeParameters,
 } from "./handshake.js";
-import { InitiatorParameters, Receiver, ReceiverParameters, Sender, WakuPairing } from "./pairing.js";
+import { InitiatorParameters, Responder, ResponderParameters, Sender, WakuPairing } from "./pairing.js";
 import {
   EmptyPreMessage,
   HandshakePattern,
@@ -51,4 +51,4 @@ export { ChaChaPolyCipherState, NoisePublicKey };
 export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
 export { QR };
-export { InitiatorParameters, ReceiverParameters, Sender, Receiver, WakuPairing };
+export { InitiatorParameters, ResponderParameters, Sender, Responder, WakuPairing };
