@@ -8,6 +8,7 @@ import type { KeyPair } from "./@types/keypair.js";
 import { Curve25519KeySize, dh, generateX25519KeyPair, getHKDF, intoCurve25519Key } from "./crypto.js";
 import { SymmetricState } from "./noise.js";
 import { EmptyPreMessage, HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
+import { MessageNametagLength } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 
 const log = debug("waku:noise:handshake-state");
@@ -91,8 +92,8 @@ export class HandshakeState {
     const result = new HandshakeState(this.handshakePattern, this.psk);
     result.s = this.s;
     result.e = this.e;
-    result.rs = this.rs;
-    result.re = this.re;
+    result.rs = this.rs ? new Uint8Array(this.rs) : undefined;
+    result.re = this.re ? new Uint8Array(this.re) : undefined;
     result.ss = this.ss.clone();
     result.initiator = this.initiator;
     result.msgPatternIdx = this.msgPatternIdx;
@@ -108,7 +109,7 @@ export class HandshakeState {
   // In current implementation the messageNametag = HKDF(handshake hash value), but other derivation mechanisms can be implemented
   toMessageNametag(): MessageNametag {
     const [output] = getHKDF(this.ss.h, new Uint8Array());
-    return output;
+    return output.subarray(0, MessageNametagLength);
   }
 
   // Handshake Processing
