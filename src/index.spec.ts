@@ -445,14 +445,18 @@ describe("js-noise", () => {
       // Alice writes to Bob
       let message = randomBytes(32);
       let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      let serializedPayload = payload2.serialize();
+      let deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      let readMessage = bobHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32);
       payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      serializedPayload = payload2.serialize();
+      deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      readMessage = aliceHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
     }
@@ -536,14 +540,18 @@ describe("js-noise", () => {
       // Alice writes to Bob
       let message = randomBytes(32);
       let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      let serializedPayload = payload2.serialize();
+      let deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      let readMessage = bobHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32);
       payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      serializedPayload = payload2.serialize();
+      deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      readMessage = aliceHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
     }
@@ -634,14 +642,18 @@ describe("js-noise", () => {
       // Alice writes to Bob
       let message = randomBytes(32);
       let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      let serializedPayload = payload2.serialize();
+      let deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      let readMessage = bobHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32);
       payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      serializedPayload = payload2.serialize();
+      deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      readMessage = aliceHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
     }
@@ -727,14 +739,18 @@ describe("js-noise", () => {
       // Alice writes to Bob
       let message = randomBytes(32);
       let payload2 = aliceHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      let readMessage = bobHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      let serializedPayload = payload2.serialize();
+      let deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      let readMessage = bobHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32);
       payload2 = bobHSResult.writeMessage(message, defaultMessageNametagBuffer);
-      readMessage = aliceHSResult.readMessage(payload2, defaultMessageNametagBuffer);
+      serializedPayload = payload2.serialize();
+      deserializedPayload = PayloadV2.deserialize(serializedPayload);
+      readMessage = aliceHSResult.readMessage(deserializedPayload, defaultMessageNametagBuffer);
 
       expect(uint8ArrayEquals(message, readMessage)).to.be.true;
     }
