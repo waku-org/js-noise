@@ -74,6 +74,16 @@ export class MessageNametagBuffer {
     return true;
   }
 
+  rotateLeft(k: number): void {
+    if (k < 0 || this.buffer.length == 0) {
+      return;
+    }
+    const idx = this.buffer.length - (k % this.buffer.length);
+    const a1 = this.buffer.slice(idx);
+    const a2 = this.buffer.slice(0, idx);
+    this.buffer = a1.concat(a2);
+  }
+
   // Deletes the first n elements in buffer and appends n new ones
   delete(n: number): void {
     if (n <= 0) {
@@ -87,10 +97,7 @@ export class MessageNametagBuffer {
     // Note that if the input MessageNametagBuffer is set to default, nothing is done here
     if (this.secret) {
       // We rotate left the array by n
-      for (let i = 0; i < n; i++) {
-        const first = this.buffer.shift();
-        if (first) this.buffer.push(first);
-      }
+      this.rotateLeft(n);
 
       for (let i = 0; i < n; i++) {
         const counterBytesLE = writeUIntLE(new Uint8Array(8), this.counter, 0, 8);
