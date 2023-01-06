@@ -11,8 +11,8 @@ import {
 } from "./codec";
 import { commitPublicKey, generateX25519KeyPair } from "./crypto";
 import { Handshake } from "./handshake";
+import { MessageNametagBufferSize, MessageNametagLength } from "./messagenametag";
 import { NoiseHandshakePatterns } from "./patterns";
-import { MessageNametagBufferSize, MessageNametagLength } from "./payload";
 import { NoisePublicKey } from "./publickey";
 import { QR } from "./qr";
 
@@ -51,7 +51,7 @@ describe("Waku Noise Sessions", () => {
     const qr = new QR(applicationName, applicationVersion, shardId, bobEphemeralKey.publicKey, bobCommittedStaticKey);
 
     // Alice deserializes the QR code
-    const readQR = QR.fromString(qr.toString());
+    const readQR = QR.from(qr.toString());
 
     // We check if QR serialization/deserialization works
     expect(readQR.applicationName).to.be.equals(applicationName);

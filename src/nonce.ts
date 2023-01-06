@@ -1,4 +1,6 @@
-import type { bytes, uint64 } from "./@types/basic.js";
+// Adapted from https://github.com/ChainSafe/js-libp2p-noise/blob/master/src/nonce.ts
+
+import type { uint64 } from "./@types/basic.js";
 
 export const MIN_NONCE = 0;
 // For performance reasons, the nonce is represented as a JS `number`
@@ -17,7 +19,7 @@ const ERR_MAX_NONCE = "Cipherstate has reached maximum n, a new handshake must b
  */
 export class Nonce {
   private n: uint64;
-  private readonly bytes: bytes;
+  private readonly bytes: Uint8Array;
   private readonly view: DataView;
 
   constructor(n = MIN_NONCE) {
@@ -33,7 +35,7 @@ export class Nonce {
     this.view.setUint32(4, this.n, true);
   }
 
-  getBytes(): bytes {
+  getBytes(): Uint8Array {
     return this.bytes;
   }
 

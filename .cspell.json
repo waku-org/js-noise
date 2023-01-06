@@ -14,6 +14,7 @@
     "blocksize",
     "Nametag",
     "Cipherstate",
+    "cipherstates",
     "Nametags",
     "HASHLEN",
     "ciphertext",

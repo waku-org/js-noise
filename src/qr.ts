@@ -2,6 +2,9 @@ import { decode, encode, fromUint8Array, toUint8Array } from "js-base64";
 
 import { bytes32 } from "./@types/basic.js";
 
+/**
+ * QR code generation
+ */
 export class QR {
   constructor(
     public readonly applicationName: string,
@@ -22,14 +25,30 @@ export class QR {
     return qr;
   }
 
+  /**
+   * Convert QR code into byte array
+   * @returns byte array serialization of a base64 encoded QR code
+   */
   toByteArray(): Uint8Array {
     const enc = new TextEncoder();
     return enc.encode(this.toString());
   }
 
-  // Deserializes input string in base64 to the corresponding (applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey)
-  static fromString(qrString: string): QR {
-    const values = qrString.split(":");
+  /**
+   * Deserializes input string in base64 to the corresponding (applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey)
+   * @param input input base64 encoded string
+   * @returns QR
+   */
+  static from(input: string | Uint8Array): QR {
+    let qrStr: string;
+    if (input instanceof Uint8Array) {
+      const dec = new TextDecoder();
+      qrStr = dec.decode(input);
+    } else {
+      qrStr = input;
+    }
+
+    const values = qrStr.split(":");
 
     if (values.length != 5) throw new Error("invalid qr string");
 

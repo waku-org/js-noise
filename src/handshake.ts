@@ -4,11 +4,12 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { bytes32 } from "./@types/basic";
 import { KeyPair } from "./@types/keypair";
-import { getHKDFRaw } from "./crypto.js";
+import { HKDF } from "./crypto";
 import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state.js";
+import { MessageNametagBuffer, toMessageNametag } from "./messagenametag";
 import { CipherState } from "./noise.js";
 import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns.js";
-import { MessageNametagBuffer, PayloadV2, toMessageNametag } from "./payload.js";
+import { PayloadV2 } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 
 // Noise state machine
@@ -172,7 +173,7 @@ export class Handshake {
 
   // Generates an 8 decimal digits authorization code using HKDF and the handshake state
   genAuthcode(): string {
-    const output0 = getHKDFRaw(this.hs.ss.h, new Uint8Array(), 8);
+    const [output0] = HKDF(this.hs.ss.h, new Uint8Array(), 8, 1);
     const bn = new BN(output0);
     const code = bn.mod(new BN(100_000_000)).toString().padStart(8, "0");
     return code.toString();

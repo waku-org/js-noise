@@ -13,9 +13,9 @@ import {
   MessageNametagError,
   StepHandshakeParameters,
 } from "./handshake.js";
+import { MessageNametagBuffer } from "./messagenametag.js";
 import { InitiatorParameters, Responder, ResponderParameters, Sender, WakuPairing } from "./pairing.js";
 import {
-  EmptyPreMessage,
   HandshakePattern,
   MessageDirection,
   MessagePattern,
@@ -24,7 +24,6 @@ import {
   PayloadV2ProtocolIDs,
   PreMessagePattern,
 } from "./patterns.js";
-import { MessageNametagBuffer } from "./payload.js";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
@@ -38,7 +37,6 @@ export {
 };
 export { generateX25519KeyPair, generateX25519KeyPairFromSeed };
 export {
-  EmptyPreMessage,
   HandshakePattern,
   MessageDirection,
   MessagePattern,

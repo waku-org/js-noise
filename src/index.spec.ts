@@ -5,10 +5,11 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { chaCha20Poly1305Encrypt, dh, generateX25519KeyPair } from "./crypto";
 import { Handshake, HandshakeStepResult } from "./handshake";
+import { MessageNametagBuffer, MessageNametagLength } from "./messagenametag";
 import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
 import { NoiseHandshakePatterns } from "./patterns";
-import { MessageNametagBuffer, MessageNametagLength, PayloadV2 } from "./payload";
+import { PayloadV2 } from "./payload";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
 
 function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {

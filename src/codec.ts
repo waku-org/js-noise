@@ -10,9 +10,28 @@ const log = debug("waku:message:noise-codec");
 
 const OneMillion = BigInt(1_000_000);
 
-export const Version = 2;
+// WakuMessage version for noise protocol
+const version = 2;
 
+/**
+ * Used internally in the pairing object to represent a handshake message
+ */
+export class NoiseHandshakeMessage extends MessageV0 implements Message {
+  get payloadV2(): PayloadV2 {
+    if (!this.payload) throw new Error("no payload available");
+    return PayloadV2.deserialize(this.payload);
+  }
+}
+
+/**
+ * Used in the pairing object for encoding the messages exchanged
+ * during the handshake process
+ */
 export class NoiseHandshakeEncoder implements Encoder {
+  /**
+   * @param contentTopic content topic on which the encoded WakuMessages will be sent
+   * @param hsStepResult the result of a step executed while performing the handshake process
+   */
   constructor(public contentTopic: string, private hsStepResult: HandshakeStepResult) {}
 
   async encode(message: Message): Promise<Uint8Array | undefined> {
@@ -25,34 +44,21 @@ export class NoiseHandshakeEncoder implements Encoder {
     const timestamp = message.timestamp ?? new Date();
     return {
       payload: this.hsStepResult.payload2.serialize(),
-      version: Version,
+      version: version,
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
     };
   }
 }
 
-export class NoiseHandshakeMessage extends MessageV0 implements Message {
-  get payloadV2(): PayloadV2 {
-    if (!this.payload) throw new Error("no payload available");
-    return PayloadV2.deserialize(this.payload);
-  }
-}
-
-export class NoiseSecureMessage extends MessageV0 implements Message {
-  private readonly _decodedPayload: Uint8Array;
-
-  constructor(proto: proto_message.WakuMessage, decodedPayload: Uint8Array) {
-    super(proto);
-    this._decodedPayload = decodedPayload;
-  }
-
-  get payload(): Uint8Array {
-    return this._decodedPayload;
-  }
-}
-
+/**
+ * Used in the pairing object for decoding the messages exchanged
+ * during the handshake process
+ */
 export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
+  /**
+   * @param contentTopic content topic on which the encoded WakuMessages were sent
+   */
   constructor(public contentTopic: string) {}
 
   decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
@@ -67,8 +73,8 @@ export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
       proto.version = 0;
     }
 
-    if (proto.version !== Version) {
-      log("Failed to decode due to incorrect version, expected:", Version, ", actual:", proto.version);
+    if (proto.version !== version) {
+      log("Failed to decode due to incorrect version, expected:", version, ", actual:", proto.version);
       return Promise.resolve(undefined);
     }
 
@@ -81,7 +87,34 @@ export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
   }
 }
 
+/**
+ * Represents a secure message. These are messages that are transmitted
+ * after a successful handshake is performed.
+ */
+export class NoiseSecureMessage extends MessageV0 implements Message {
+  private readonly _decodedPayload: Uint8Array;
+
+  constructor(proto: proto_message.WakuMessage, decodedPayload: Uint8Array) {
+    super(proto);
+    this._decodedPayload = decodedPayload;
+  }
+
+  get payload(): Uint8Array {
+    return this._decodedPayload;
+  }
+}
+
+/**
+ * js-waku encoder for secure messages. After a handshake is successful, a
+ * codec for encoding messages is generated. The messages encoded with this
+ * codec will be encrypted with the cipherstates and message nametags that were
+ * created after a handshake is complete
+ */
 export class NoiseSecureTransferEncoder implements Encoder {
+  /**
+   * @param contentTopic content topic on which the encoded WakuMessages were sent
+   * @param hsResult handshake result obtained after the handshake is successful
+   */
   constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
 
   async encode(message: Message): Promise<Uint8Array | undefined> {
@@ -103,14 +136,24 @@ export class NoiseSecureTransferEncoder implements Encoder {
 
     return {
       payload,
-      version: Version,
+      version: version,
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
     };
   }
 }
 
+/**
+ * js-waku decoder for secure messages. After a handshake is successful, a codec
+ * for decoding messages is generated. This decoder will attempt to decrypt
+ * messages with the cipherstates and message nametags that were created after a
+ * handshake is complete
+ */
 export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
+  /**
+   * @param contentTopic content topic on which the encoded WakuMessages were sent
+   * @param hsResult handshake result obtained after the handshake is successful
+   */
   constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
 
   decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
@@ -125,8 +168,8 @@ export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
       proto.version = 0;
     }
 
-    if (proto.version !== Version) {
-      log("Failed to decode due to incorrect version, expected:", Version, ", actual:", proto.version);
+    if (proto.version !== version) {
+      log("Failed to decode due to incorrect version, expected:", version, ", actual:", proto.version);
       return Promise.resolve(undefined);
     }
 

@@ -8,8 +8,8 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { NoiseHandshakeMessage } from "./codec";
 import { generateX25519KeyPair } from "./crypto";
+import { MessageNametagBufferSize } from "./messagenametag";
 import { ResponderParameters, WakuPairing } from "./pairing";
-import { MessageNametagBufferSize } from "./payload";
 
 describe("js-noise: pairing object", () => {
   const rng = new HMACDRBG();

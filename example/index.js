@@ -82,7 +82,7 @@ function getSenderAndResponder(node) {
         await subscriptions.get(contentTopic)();
         subscriptions.delete(contentTopic);
       } else {
-        console.log("Subscriptipon doesnt exist")
+        console.log("Subscription doesnt exist");
       }
     },
   };

@@ -5,10 +5,10 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 import { bytes32 } from "./@types/basic.js";
 import { MessageNametag } from "./@types/handshake.js";
 import type { KeyPair } from "./@types/keypair.js";
-import { Curve25519KeySize, dh, generateX25519KeyPair, getHKDF, intoCurve25519Key } from "./crypto.js";
+import { Curve25519KeySize, dh, generateX25519KeyPair, HKDF, intoCurve25519Key } from "./crypto.js";
+import { MessageNametagLength } from "./messagenametag";
 import { SymmetricState } from "./noise.js";
-import { EmptyPreMessage, HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
-import { MessageNametagLength } from "./payload.js";
+import { HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
 
 const log = debug("waku:noise:handshake-state");
@@ -101,14 +101,15 @@ export class HandshakeState {
   }
 
   genMessageNametagSecrets(): { nms1: Uint8Array; nms2: Uint8Array } {
-    const [nms1, nms2] = getHKDF(this.ss.h, new Uint8Array());
+    const [nms1, nms2] = HKDF(this.ss.h, new Uint8Array(), 2, 32);
     return { nms1, nms2 };
   }
 
   // Uses the cryptographic information stored in the input handshake state to generate a random message nametag
   // In current implementation the messageNametag = HKDF(handshake hash value), but other derivation mechanisms can be implemented
   toMessageNametag(): MessageNametag {
-    const [output] = getHKDF(this.ss.h, new Uint8Array());
+    console.log("HELLO!");
+    const [output] = HKDF(this.ss.h, new Uint8Array(), 32, 1);
     return output.subarray(0, MessageNametagLength);
   }
 
@@ -181,7 +182,7 @@ export class HandshakeState {
 
     // We retrieve the pre-message patterns to process, if any
     // If none, there's nothing to do
-    if (this.handshakePattern.preMessagePatterns == EmptyPreMessage) {
+    if (this.handshakePattern.preMessagePatterns.length == 0) {
       return;
     }
 

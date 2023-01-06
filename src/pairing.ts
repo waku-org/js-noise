@@ -16,27 +16,48 @@ import {
 } from "./codec.js";
 import { commitPublicKey, generateX25519KeyPair } from "./crypto.js";
 import { Handshake, HandshakeResult, HandshakeStepResult, MessageNametagError } from "./handshake.js";
+import { MessageNametagLength } from "./messagenametag.js";
 import { NoiseHandshakePatterns } from "./patterns.js";
-import { MessageNametagLength } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
 const log = debug("waku:noise:pairing");
 
+/**
+ * Sender interface that an object must implement so the pairing object can publish noise messages
+ */
 export interface Sender {
+  /**
+   * Publish a message
+   * @param encoder NoiseHandshakeEncoder encoder to use to encrypt the messages
+   * @param msg message to broadcast
+   */
   publish(encoder: Encoder, msg: Message): Promise<void>;
 }
 
+/**
+ * Responder interface than an object must implement so the pairing object can receive noise messages
+ */
 export interface Responder {
+  /**
+   * subscribe to receive the messages from a content topic
+   * @param decoder Decoder to use to decrypt the NoiseHandshakeMessages
+   */
   subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void>;
 
-  // next message should return messages received in a content topic
-  // messages should be kept in a queue, meaning that nextMessage
-  // will call pop in the queue to remove the oldest message received
-  // (it's important to maintain order of received messages)
+  /**
+   * should return messages received in a content topic
+   * messages should be kept in a queue, meaning that nextMessage
+   * will call pop in the queue to remove the oldest message received
+   * (it's important to maintain order of received messages)
+   * @param contentTopic content topic to get the next message from
+   */
   nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage>;
 
-  // this should stop the subscription
+  /**
+   * Stop the subscription to the content topic
+   * @param contentTopic
+   */
   stop(contentTopic: string): Promise<void>;
 }
 
@@ -46,10 +67,16 @@ function delay(ms: number): Promise<void> {
 
 const rng = new HMACDRBG();
 
+/**
+ * Initiator parameters used to setup the pairing object
+ */
 export class InitiatorParameters {
   constructor(public readonly qrCode: string, public readonly qrMessageNameTag: Uint8Array) {}
 }
 
+/**
+ * Responder parameters used to setup the pairing object
+ */
 export class ResponderParameters {
   constructor(
     public readonly applicationName: string = "waku-noise-sessions",
@@ -58,6 +85,9 @@ export class ResponderParameters {
   ) {}
 }
 
+/**
+ * Pairing object to setup a noise session
+ */
 export class WakuPairing {
   public readonly contentTopic: string;
 
@@ -73,12 +103,24 @@ export class WakuPairing {
 
   private eventEmitter = new EventEmitter();
 
+  /**
+   * Convert a QR into a content topic
+   * @param qr
+   * @returns content topic string
+   */
   private static toContentTopic(qr: QR): string {
     return (
       "/" + qr.applicationName + "/" + qr.applicationVersion + "/wakunoise/1/sessions_shard-" + qr.shardId + "/proto"
     );
   }
 
+  /**
+   * @param sender object that implements Sender interface to publish waku messages
+   * @param responder object that implements Responder interface to subscribe and receive waku messages
+   * @param myStaticKey x25519 keypair
+   * @param pairingParameters Pairing parameters (depending if this is the initiator or responder)
+   * @param myEphemeralKey optional ephemeral key
+   */
   constructor(
     private sender: Sender,
     private responder: Responder,
@@ -91,7 +133,7 @@ export class WakuPairing {
 
     if (pairingParameters instanceof InitiatorParameters) {
       this.initiator = true;
-      this.qr = QR.fromString(pairingParameters.qrCode);
+      this.qr = QR.from(pairingParameters.qrCode);
       this.qrMessageNameTag = pairingParameters.qrMessageNameTag;
     } else {
       this.initiator = false;
@@ -104,6 +146,7 @@ export class WakuPairing {
         this.myCommittedStaticKey
       );
     }
+
     // We set the contentTopic from the content topic parameters exchanged in the QR
     this.contentTopic = WakuPairing.toContentTopic(this.qr);
 
@@ -121,10 +164,19 @@ export class WakuPairing {
     });
   }
 
+  /**
+   * Get pairing information (as an InitiatorParameter object)
+   * @returns InitiatorParameters
+   */
   public getPairingInfo(): InitiatorParameters {
     return new InitiatorParameters(this.qr.toString(), this.qrMessageNameTag);
   }
 
+  /**
+   * Get auth code (to validate that pairing). It must be displayed on both
+   * devices and the user(s) must confirm if the auth code match
+   * @returns Promise that resolves to an auth code
+   */
   public async getAuthCode(): Promise<string> {
     return new Promise((resolve) => {
       if (this.authCode) {
@@ -138,8 +190,14 @@ export class WakuPairing {
     });
   }
 
-  public validateAuthCode(confirmed: boolean): void {
-    this.eventEmitter.emit("confirmAuthCode", confirmed);
+  /**
+   * Indicate if auth code is valid. This is a function that must be
+   * manually called by the user(s) if the auth code in both devices being
+   * paired match. If false, pairing session is terminated
+   * @param isValid true if authcode is correct, false otherwise.
+   */
+  public validateAuthCode(isValid: boolean): void {
+    this.eventEmitter.emit("confirmAuthCode", isValid);
   }
 
   private async isAuthCodeConfirmed(): Promise<boolean | undefined> {
@@ -301,6 +359,13 @@ export class WakuPairing {
     return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
   }
 
+  /**
+   * Get codecs for encoding/decoding messages in js-waku. This function can be used
+   * to continue a session using a stored hsResult
+   * @param contentTopic Content topic for the waku messages
+   * @param hsResult Noise Pairing result
+   * @returns an array with [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]
+   */
   static getSecureCodec(
     contentTopic: string,
     hsResult: HandshakeResult
@@ -311,6 +376,10 @@ export class WakuPairing {
     return [secureEncoder, secureDecoder];
   }
 
+  /**
+   * Get handshake result
+   * @returns result of a successful pairing
+   */
   public getHandshakeResult(): HandshakeResult {
     if (!this.handshakeResult) {
       throw new Error("handshake is not complete");
@@ -318,14 +387,19 @@ export class WakuPairing {
     return this.handshakeResult;
   }
 
-  async execute(timeoutMs = 30000): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
+  /**
+   * Execute handshake
+   * @param timeoutMs Timeout in milliseconds after which the pairing session is invalid
+   * @returns promise that resolves to codecs for encoding/decoding messages in js-waku
+   */
+  async execute(timeoutMs = 60000): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     if (this.started) {
       throw new Error("pairing already executed. Create new pairing object");
     }
 
     this.started = true;
     return new Promise((resolve, reject) => {
-      //  Limit QR exposure to 30s
+      //  Limit QR exposure to some timeout
       const timer = setTimeout(() => {
         reject(new Error("pairing has timed out"));
         this.eventEmitter.emit("pairingTimeout");
