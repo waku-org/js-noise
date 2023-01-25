@@ -4,9 +4,9 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { bytes32 } from "./@types/basic";
 import { KeyPair } from "./@types/keypair";
-import { HKDF } from "./crypto";
+import { HKDF } from "./crypto.js";
 import { HandshakeState, NoisePaddingBlockSize } from "./handshake_state.js";
-import { MessageNametagBuffer, toMessageNametag } from "./messagenametag";
+import { MessageNametagBuffer, toMessageNametag } from "./messagenametag.js";
 import { CipherState } from "./noise.js";
 import { HandshakePattern, PayloadV2ProtocolIDs } from "./patterns.js";
 import { PayloadV2 } from "./payload.js";
