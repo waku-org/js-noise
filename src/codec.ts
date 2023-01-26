@@ -43,6 +43,7 @@ export class NoiseHandshakeEncoder implements Encoder {
   async toProtoObj(message: Partial<Message>): Promise<ProtoMessage | undefined> {
     const timestamp = message.timestamp ?? new Date();
     return {
+      rateLimitProof: undefined,
       payload: this.hsStepResult.payload2.serialize(),
       version: version,
       contentTopic: this.contentTopic,
@@ -64,7 +65,9 @@ export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
   fromWireToProtoObj(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
     const protoMessage = proto_message.WakuMessage.decode(bytes);
     log("Message decoded", protoMessage);
-    return Promise.resolve(protoMessage);
+    // TODO(@weboko): remove type casting when released
+    // https://github.com/waku-org/js-waku/pull/1136
+    return Promise.resolve(protoMessage as ProtoMessage);
   }
 
   async fromProtoObj(proto: ProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
@@ -136,6 +139,7 @@ export class NoiseSecureTransferEncoder implements Encoder {
 
     return {
       payload,
+      rateLimitProof: undefined,
       version: version,
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
@@ -159,7 +163,9 @@ export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
   fromWireToProtoObj(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
     const protoMessage = proto_message.WakuMessage.decode(bytes);
     log("Message decoded", protoMessage);
-    return Promise.resolve(protoMessage);
+    // TODO(@weboko): remove type casting when released
+    // https://github.com/waku-org/js-waku/pull/1136
+    return Promise.resolve(protoMessage as ProtoMessage);
   }
 
   async fromProtoObj(proto: ProtoMessage): Promise<NoiseSecureMessage | undefined> {
