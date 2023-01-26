@@ -34,13 +34,13 @@ export class NoiseHandshakeEncoder implements Encoder {
    */
   constructor(public contentTopic: string, private hsStepResult: HandshakeStepResult) {}
 
-  async encode(message: Message): Promise<Uint8Array | undefined> {
-    const protoMessage = await this.encodeProto(message);
+  async toWire(message: Partial<Message>): Promise<Uint8Array | undefined> {
+    const protoMessage = await this.toProtoObj(message);
     if (!protoMessage) return;
     return proto_message.WakuMessage.encode(protoMessage);
   }
 
-  async encodeProto(message: Message): Promise<ProtoMessage | undefined> {
+  async toProtoObj(message: Partial<Message>): Promise<ProtoMessage | undefined> {
     const timestamp = message.timestamp ?? new Date();
     return {
       payload: this.hsStepResult.payload2.serialize(),
@@ -61,13 +61,13 @@ export class NoiseHandshakeDecoder implements Decoder<NoiseHandshakeMessage> {
    */
   constructor(public contentTopic: string) {}
 
-  decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
+  fromWireToProtoObj(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
     const protoMessage = proto_message.WakuMessage.decode(bytes);
     log("Message decoded", protoMessage);
     return Promise.resolve(protoMessage);
   }
 
-  async decode(proto: ProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
+  async fromProtoObj(proto: ProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
     // https://github.com/status-im/js-waku/issues/921
     if (proto.version === undefined) {
       proto.version = 0;
@@ -117,13 +117,13 @@ export class NoiseSecureTransferEncoder implements Encoder {
    */
   constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
 
-  async encode(message: Message): Promise<Uint8Array | undefined> {
-    const protoMessage = await this.encodeProto(message);
+  async toWire(message: Partial<Message>): Promise<Uint8Array | undefined> {
+    const protoMessage = await this.toProtoObj(message);
     if (!protoMessage) return;
     return proto_message.WakuMessage.encode(protoMessage);
   }
 
-  async encodeProto(message: Message): Promise<ProtoMessage | undefined> {
+  async toProtoObj(message: Partial<Message>): Promise<ProtoMessage | undefined> {
     const timestamp = message.timestamp ?? new Date();
     if (!message.payload) {
       log("No payload to encrypt, skipping: ", message);
@@ -156,13 +156,13 @@ export class NoiseSecureTransferDecoder implements Decoder<NoiseSecureMessage> {
    */
   constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
 
-  decodeProto(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
+  fromWireToProtoObj(bytes: Uint8Array): Promise<ProtoMessage | undefined> {
     const protoMessage = proto_message.WakuMessage.decode(bytes);
     log("Message decoded", protoMessage);
     return Promise.resolve(protoMessage);
   }
 
-  async decode(proto: ProtoMessage): Promise<NoiseSecureMessage | undefined> {
+  async fromProtoObj(proto: ProtoMessage): Promise<NoiseSecureMessage | undefined> {
     // https://github.com/status-im/js-waku/issues/921
     if (proto.version === undefined) {
       proto.version = 0;
