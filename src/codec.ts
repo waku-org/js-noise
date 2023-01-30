@@ -1,5 +1,5 @@
 import debug from "debug";
-import { DecodedMessage, Decoder, Encoder, proto } from "@waku/core/lib/message/version_0";
+import { DecodedMessage } from "@waku/core/lib/message/version_0";
 import { IEncoder, IDecoder, IDecodedMessage, IProtoMessage, IMessage } from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
 
