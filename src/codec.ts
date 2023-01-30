@@ -6,8 +6,6 @@ import { PayloadV2 } from "./payload.js";
 
 const log = debug("waku:message:noise-codec");
 
-const OneMillion = BigInt(1_000_000);
-
 // WakuMessage version for noise protocol
 const version = 2;
 
