@@ -1,8 +1,8 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
+import { IDecoder, IEncoder, IMessage } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
-import { IMessage, IDecoder, IEncoder } from "@waku/interfaces";
 import { pEvent } from "p-event";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
