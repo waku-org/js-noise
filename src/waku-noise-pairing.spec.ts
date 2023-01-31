@@ -113,12 +113,12 @@ describe("Waku Noise Sessions", () => {
     // We prepare a Waku message from Alice's payload2
     // At this point wakuMsg is sent over the Waku network and is received
     // We simulate this by creating the ProtoBuffer from wakuMsg
-    let wakuMsgBytes = await encoder.encode({});
+    let wakuMsgBytes = await encoder.toWire({});
 
     // We decode the WakuMessage from the ProtoBuffer
     let decoder = new NoiseHandshakeDecoder(contentTopic);
-    let wakuMsgProto = await decoder.decodeProto(wakuMsgBytes!);
-    let v2Msg = await decoder.decode(wakuMsgProto!);
+    let wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
+    let v2Msg = await decoder.fromProtoObj(wakuMsgProto!);
 
     expect(v2Msg!.contentTopic).to.be.equals(contentTopic);
     expect(v2Msg?.payloadV2.equals(aliceStep.payload2)).to.be.true;
@@ -155,12 +155,12 @@ describe("Waku Noise Sessions", () => {
 
     // At this point wakuMsg is sent over the Waku network and is received
     // We simulate this by creating the ProtoBuffer from wakuMsg
-    wakuMsgBytes = await encoder.encode({});
+    wakuMsgBytes = await encoder.toWire({});
 
     // We decode the WakuMessage from the ProtoBuffer
     decoder = new NoiseHandshakeDecoder(contentTopic);
-    wakuMsgProto = await decoder.decodeProto(wakuMsgBytes!);
-    v2Msg = await decoder.decode(wakuMsgProto!);
+    wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
+    v2Msg = await decoder.fromProtoObj(wakuMsgProto!);
 
     expect(v2Msg?.payloadV2.equals(bobStep.payload2)).to.be.true;
 
@@ -192,12 +192,12 @@ describe("Waku Noise Sessions", () => {
 
     // At this point wakuMsg is sent over the Waku network and is received
     // We simulate this by creating the ProtoBuffer from wakuMsg
-    wakuMsgBytes = await encoder.encode({});
+    wakuMsgBytes = await encoder.toWire({});
 
     // We decode the WakuMessage from the ProtoBuffer
     decoder = new NoiseHandshakeDecoder(contentTopic);
-    wakuMsgProto = await decoder.decodeProto(wakuMsgBytes!);
-    v2Msg = await decoder.decode(wakuMsgProto!);
+    wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
+    v2Msg = await decoder.fromProtoObj(wakuMsgProto!);
 
     expect(v2Msg?.payloadV2.equals(aliceStep.payload2)).to.be.true;
 
@@ -229,17 +229,17 @@ describe("Waku Noise Sessions", () => {
     for (let i = 0; i < 10 * MessageNametagBufferSize; i++) {
       // Alice writes to Bob
       let message = randomBytes(32, rng);
-      let encodedMsg = await aliceEncoder.encode({ payload: message });
-      let readMessageProto = await bobDecoder.decodeProto(encodedMsg!);
-      let readMessage = await bobDecoder.decode(readMessageProto!);
+      let encodedMsg = await aliceEncoder.toWire({ payload: message });
+      let readMessageProto = await bobDecoder.fromWireToProtoObj(encodedMsg!);
+      let readMessage = await bobDecoder.fromProtoObj(readMessageProto!);
 
       expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32, rng);
-      encodedMsg = await bobEncoder.encode({ payload: message });
-      readMessageProto = await aliceDecoder.decodeProto(encodedMsg!);
-      readMessage = await aliceDecoder.decode(readMessageProto!);
+      encodedMsg = await bobEncoder.toWire({ payload: message });
+      readMessageProto = await aliceDecoder.fromWireToProtoObj(encodedMsg!);
+      readMessage = await aliceDecoder.fromProtoObj(readMessageProto!);
 
       expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
     }

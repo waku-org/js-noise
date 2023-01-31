@@ -2,7 +2,7 @@ import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
 import { expect } from "chai";
 import { EventEmitter } from "eventemitter3";
-import { Decoder, Encoder, Message } from "js-waku/lib/interfaces";
+import { IDecoder, IEncoder, IMessage } from "@waku/interfaces";
 import { pEvent } from "p-event";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
@@ -24,14 +24,14 @@ describe("js-noise: pairing object", () => {
   // Simulate waku. This code is not meant to be used IRL
   const msgEmitter = new EventEmitter();
   const sender = {
-    async publish(encoder: Encoder, msg: Message): Promise<void> {
-      const protoMsg = await encoder.encodeProto(msg);
+    async publish(encoder: IEncoder, msg: IMessage): Promise<void> {
+      const protoMsg = await encoder.toProtoObj(msg);
       msgEmitter.emit(encoder.contentTopic, protoMsg);
     },
   };
-  const decoderMap: { [key: string]: Decoder<NoiseHandshakeMessage> } = {};
+  const decoderMap: { [key: string]: IDecoder<NoiseHandshakeMessage> } = {};
   const responder = {
-    subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void> {
+    subscribe(decoder: IDecoder<NoiseHandshakeMessage>): Promise<void> {
       return new Promise((resolve) => {
         decoderMap[decoder.contentTopic] = decoder;
         resolve();
@@ -39,7 +39,7 @@ describe("js-noise: pairing object", () => {
     },
     async nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage> {
       const msg = await pEvent(msgEmitter, contentTopic);
-      const decodedMessage = await decoderMap[contentTopic].decode(msg);
+      const decodedMessage = await decoderMap[contentTopic].fromProtoObj(msg);
       return decodedMessage!;
     },
     async stop(contentTopic: string): Promise<void> {
@@ -79,17 +79,17 @@ describe("js-noise: pairing object", () => {
     for (let i = 0; i < 10 * MessageNametagBufferSize; i++) {
       // Alice writes to Bob
       let message = randomBytes(32, rng);
-      let encodedMsg = await aliceEncoder.encode({ payload: message });
-      let readMessageProto = await bobDecoder.decodeProto(encodedMsg!);
-      let readMessage = await bobDecoder.decode(readMessageProto!);
+      let encodedMsg = await aliceEncoder.toWire({ payload: message });
+      let readMessageProto = await bobDecoder.fromWireToProtoObj(encodedMsg!);
+      let readMessage = await bobDecoder.fromProtoObj(readMessageProto!);
 
       expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
 
       // Bob writes to Alice
       message = randomBytes(32, rng);
-      encodedMsg = await bobEncoder.encode({ payload: message });
-      readMessageProto = await aliceDecoder.decodeProto(encodedMsg!);
-      readMessage = await aliceDecoder.decode(readMessageProto!);
+      encodedMsg = await bobEncoder.toWire({ payload: message });
+      readMessageProto = await aliceDecoder.fromWireToProtoObj(encodedMsg!);
+      readMessage = await aliceDecoder.fromProtoObj(readMessageProto!);
 
       expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
     }
