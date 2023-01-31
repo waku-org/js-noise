@@ -10,9 +10,9 @@ const output = {
 
 module.exports = function (config) {
   config.set({
-    frameworks: ["webpack", "mocha"],
+    frameworks: ["webpack", "mocha", "browserify"],
     preprocessors: {
-      "**/*.ts": ["webpack"],
+      "**/*.ts": ["webpack", "browserify"],
     },
 
     files: [
