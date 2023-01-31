@@ -53,10 +53,6 @@ module.exports = function (config) {
             exclude: /node_modules|\.d\.ts$/,
             options: { configFile: "tsconfig.karma.json" },
           },
-          {
-            test: /\.d\.ts$/,
-            loader: "ignore-loader",
-          },
         ],
       },
       output,
