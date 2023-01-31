@@ -12,7 +12,8 @@ module.exports = function (config) {
   config.set({
     frameworks: ["webpack", "mocha", "browserify"],
     preprocessors: {
-      "**/*.ts": ["webpack", "browserify"],
+      "**/*.ts": ["webpack"],
+      "**/*.js": ["browserify"]
     },
 
     files: [
