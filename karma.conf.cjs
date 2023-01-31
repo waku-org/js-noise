@@ -13,7 +13,7 @@ module.exports = function (config) {
     frameworks: ["webpack", "mocha", "browserify"],
     preprocessors: {
       "**/*.ts": ["webpack"],
-      "**/*.js": ["browserify"]
+      "**/*.js": ["browserify"],
     },
 
     files: [
