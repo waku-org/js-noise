@@ -1,13 +1,7 @@
-import debug from "debug";
 import { DecodedMessage } from "@waku/core";
-import {
-  IEncoder,
-  IDecoder,
-  IDecodedMessage,
-  IProtoMessage,
-  IMessage,
-} from "@waku/interfaces";
+import { IEncoder, IDecoder, IDecodedMessage, IProtoMessage, IMessage } from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
+import debug from "debug";
 
 import { HandshakeResult, HandshakeStepResult } from "./handshake.js";
 import { PayloadV2 } from "./payload.js";
@@ -22,7 +16,7 @@ const version = 2;
 /**
  * Used internally in the pairing object to represent a handshake message
  */
-export class NoiseHandshakeMessage extends DecodedMessage implements IDecodedMessage  {
+export class NoiseHandshakeMessage extends DecodedMessage implements IDecodedMessage {
   get payloadV2(): PayloadV2 {
     if (!this.payload) throw new Error("no payload available");
     return PayloadV2.deserialize(this.payload);
@@ -39,7 +33,11 @@ export class NoiseHandshakeEncoder implements IEncoder {
    * @param hsStepResult the result of a step executed while performing the handshake process
    * @param ephemeral makes messages ephemeral in the Waku network
    */
-  constructor(public contentTopic: string, private hsStepResult: HandshakeStepResult, public ephemeral: boolean = true) {}
+  constructor(
+    public contentTopic: string,
+    private hsStepResult: HandshakeStepResult,
+    public ephemeral: boolean = true
+  ) {}
 
   async toWire(message: IMessage): Promise<Uint8Array | undefined> {
     return this.encode(message);
@@ -81,7 +79,7 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
   fromProtoObj(proto: IProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
     return this.decode(proto);
   }
-  
+
   fromWireToProtoObj(bytes: Uint8Array): Promise<IProtoMessage | undefined> {
     return this.decodeProto(bytes);
   }
