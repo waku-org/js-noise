@@ -2,39 +2,17 @@ process.env.CHROME_BIN = require("puppeteer").executablePath();
 
 const os = require("os");
 const path = require("path");
-
-const { nodeResolve } = require("@rollup/plugin-node-resolve");
-const commonjs = require("@rollup/plugin-commonjs");
-const json = require("@rollup/plugin-json");
+const ResolveTypeScriptPlugin = require("resolve-typescript-plugin");
 
 const output = {
   path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
 };
 
-const rollupConfig = {
-  input: {
-    index: `${output.path}/index.ts`,
-  },
-  output: {
-    dir: "bundle",
-    format: "esm",
-  },
-  plugins: [
-    commonjs(),
-    json(),
-    nodeResolve({
-      browser: true,
-      preferBuiltins: false,
-      extensions: [".js", ".ts"],
-    }),
-  ],
-};
-
 module.exports = function (config) {
   config.set({
-    frameworks: ["mocha"],
+    frameworks: ["webpack", "mocha"],
     preprocessors: {
-      "**/*.ts": ["rollup"],
+      "**/*.ts": ["webpack"],
     },
 
     files: [
@@ -43,6 +21,8 @@ module.exports = function (config) {
       {
         pattern: `${output.path}/**/*`,
         watched: false,
+        included: false,
+        served: true,
       },
     ],
     envPreprocessor: ["CI"],
@@ -54,6 +34,32 @@ module.exports = function (config) {
         timeout: 6000, // Default is 2s
       },
     },
-    rollupPreprocessor: rollupConfig,
+    webpack: {
+      mode: "production",
+      resolve: {
+        // Add `.ts` and `.tsx` as a resolvable extension.
+        extensions: [".ts", ".tsx", ".js"],
+        plugins: [new ResolveTypeScriptPlugin()],
+      },
+      module: {
+        rules: [
+          {
+            test: /\.wasm$/,
+            type: "asset/resource",
+          },
+          {
+            test: /\.(js|tsx?)$/,
+            loader: "ts-loader",
+            exclude: /node_modules|\.d\.ts$/,
+            options: { configFile: "tsconfig.karma.json" },
+          },
+          {
+            test: /\.d\.ts$/,
+            loader: "ignore-loader",
+          },
+        ],
+      },
+      output,
+    },
   });
 };
