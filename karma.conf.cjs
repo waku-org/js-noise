@@ -3,7 +3,7 @@ process.env.CHROME_BIN = require("puppeteer").executablePath();
 const os = require("os");
 const path = require("path");
 
-const rollupConfig = require("./rollup.config");
+const rollupConfig = import("./rollup.config.js");
 
 const output = {
   path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
