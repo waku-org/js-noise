@@ -26,7 +26,7 @@
     "test:spelling": "cspell \"{*.md,.github/*.md,src/**/*.ts}\"",
     "test:prettier": "prettier \"src/**/*.ts\" \"*.*js\" \".github/**/*.yml\" --list-different",
     "test:tsc": "tsc -p tsconfig.dev.json",
-    "test:browser": "karma start karma.conf.cjs",
+    "test:browser": "karma start -logLevel=DEBUG karma.conf.cjs",
     "watch:build": "tsc -p tsconfig.json -w",
     "watch:test": "mocha --watch --parallel",
     "prepublish": "npm run build",
