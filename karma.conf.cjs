@@ -7,9 +7,13 @@ const { nodeResolve } = require("@rollup/plugin-node-resolve");
 const commonjs = require("@rollup/plugin-commonjs");
 const json = require("@rollup/plugin-json");
 
+const output = {
+  path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
+};
+
 const rollupConfig = {
   input: {
-    index: "dist/index.js",
+    index: `${output.path}/dist/index.js`,
   },
   output: {
     dir: "bundle",
@@ -24,10 +28,6 @@ const rollupConfig = {
       extensions: [".js", ".ts"],
     }),
   ],
-};
-
-const output = {
-  path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
 };
 
 module.exports = function (config) {
@@ -54,6 +54,6 @@ module.exports = function (config) {
         timeout: 6000, // Default is 2s
       },
     },
-    rollupPreprocessor: { ...rollupConfig },
+    rollupPreprocessor: rollupConfig,
   });
 };
