@@ -32,7 +32,7 @@ const output = {
 
 module.exports = function (config) {
   config.set({
-    frameworks: ["rollup", "mocha"],
+    frameworks: ["mocha"],
     preprocessors: {
       "**/*.ts": ["rollup"],
     },
