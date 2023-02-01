@@ -35,7 +35,8 @@ module.exports = function (config) {
       },
     },
     webpack: {
-      mode: "production",
+      mode: "development",
+      devtool: 'source-map',
       resolve: {
         // Add `.ts` and `.tsx` as a resolvable extension.
         extensions: [".ts", ".tsx", ".js"],
@@ -56,21 +57,6 @@ module.exports = function (config) {
           {
             test: /\.d\.ts$/,
             loader: "ignore-loader",
-          },
-          {
-            test: require.resolve("@waku/core"),
-            loader: "expose-loader",
-            options: "@waku/core",
-          },
-          {
-            test: require.resolve("@waku/proto"),
-            loader: "expose-loader",
-            options: "@waku/proto",
-          },
-          {
-            test: require.resolve("@waku/interfaces"),
-            loader: "expose-loader",
-            options: "@waku/interfaces",
           },
         ],
       },
