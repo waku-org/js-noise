@@ -13,7 +13,7 @@ const output = {
 
 const rollupConfig = {
   input: {
-    index: `${output.path}/dist/index.js`,
+    index: `${output.path}/index.ts`,
   },
   output: {
     dir: "bundle",
