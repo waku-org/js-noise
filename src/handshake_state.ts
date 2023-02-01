@@ -6,7 +6,7 @@ import { bytes32 } from "./@types/basic.js";
 import { MessageNametag } from "./@types/handshake.js";
 import type { KeyPair } from "./@types/keypair.js";
 import { Curve25519KeySize, dh, generateX25519KeyPair, HKDF, intoCurve25519Key } from "./crypto.js";
-import { MessageNametagLength } from "./messagenametag";
+import { MessageNametagLength } from "./messagenametag.js";
 import { SymmetricState } from "./noise.js";
 import { HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
