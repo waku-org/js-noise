@@ -2,7 +2,8 @@ process.env.CHROME_BIN = require("puppeteer").executablePath();
 
 const os = require("os");
 const path = require("path");
-const ResolveTypeScriptPlugin = require("resolve-typescript-plugin");
+
+const rollupConfig = require("./rollup.config");
 
 const output = {
   path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
@@ -34,5 +35,6 @@ module.exports = function (config) {
         timeout: 6000, // Default is 2s
       },
     },
+    rollupPreprocessor: { ...rollupConfig },
   });
 };
