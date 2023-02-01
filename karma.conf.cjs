@@ -26,7 +26,6 @@ const rollupConfig = {
   ],
 };
 
-
 const output = {
   path: path.join(os.tmpdir(), "_karma_webpack_") + Math.floor(Math.random() * 1000000),
 };
