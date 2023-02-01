@@ -10,9 +10,9 @@ const output = {
 
 module.exports = function (config) {
   config.set({
-    frameworks: ["webpack", "mocha"],
+    frameworks: ["rollup", "mocha"],
     preprocessors: {
-      "**/*.ts": ["webpack"],
+      "**/*.ts": ["rollup"],
     },
 
     files: [
@@ -33,34 +33,6 @@ module.exports = function (config) {
       mocha: {
         timeout: 6000, // Default is 2s
       },
-    },
-    webpack: {
-      mode: "development",
-      devtool: 'source-map',
-      resolve: {
-        // Add `.ts` and `.tsx` as a resolvable extension.
-        extensions: [".ts", ".tsx", ".js"],
-        plugins: [new ResolveTypeScriptPlugin()],
-      },
-      module: {
-        rules: [
-          {
-            test: /\.wasm$/,
-            type: "asset/resource",
-          },
-          {
-            test: /\.(js|tsx?)$/,
-            loader: "ts-loader",
-            exclude: /node_modules|\.d\.ts$/,
-            options: { configFile: "tsconfig.karma.json" },
-          },
-          {
-            test: /\.d\.ts$/,
-            loader: "ignore-loader",
-          },
-        ],
-      },
-      output,
     },
   });
 };
