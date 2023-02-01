@@ -43,8 +43,6 @@ module.exports = function (config) {
       {
         pattern: `${output.path}/**/*`,
         watched: false,
-        included: false,
-        served: true,
       },
     ],
     envPreprocessor: ["CI"],
