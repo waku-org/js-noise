@@ -37,7 +37,6 @@ module.exports = function (config) {
     webpack: {
       mode: "production",
       optimization: {
-        mangleExports: false,
         minimize: false,
       },
       resolve: {
