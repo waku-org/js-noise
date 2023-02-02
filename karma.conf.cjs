@@ -37,7 +37,7 @@ module.exports = function (config) {
     webpack: {
       mode: "production",
       optimization: {
-        minimize: false,
+        minimize: true,
       },
       resolve: {
         // Add `.ts` and `.tsx` as a resolvable extension.
