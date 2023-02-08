@@ -37,6 +37,8 @@ module.exports = function (config) {
     webpack: {
       mode: "production",
       optimization: {
+        // minification is disabled due to an issue with missing variable
+        // https://github.com/waku-org/js-noise/pull/18#discussion_r1100712310
         minimize: false,
       },
       resolve: {
