@@ -36,6 +36,11 @@ module.exports = function (config) {
     },
     webpack: {
       mode: "production",
+      optimization: {
+        // minification is disabled due to an issue with missing variable
+        // https://github.com/waku-org/js-noise/pull/18#discussion_r1100712310
+        minimize: false,
+      },
       resolve: {
         // Add `.ts` and `.tsx` as a resolvable extension.
         extensions: [".ts", ".tsx", ".js"],

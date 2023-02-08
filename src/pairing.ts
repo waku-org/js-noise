@@ -1,8 +1,8 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
+import type { IDecoder, IEncoder, IMessage } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
-import { Decoder, Encoder, Message } from "js-waku/lib/interfaces";
 import { pEvent } from "p-event";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
@@ -32,7 +32,7 @@ export interface Sender {
    * @param encoder NoiseHandshakeEncoder encoder to use to encrypt the messages
    * @param msg message to broadcast
    */
-  publish(encoder: Encoder, msg: Message): Promise<void>;
+  publish(encoder: IEncoder, msg: IMessage): Promise<void>;
 }
 
 /**
@@ -43,7 +43,7 @@ export interface Responder {
    * subscribe to receive the messages from a content topic
    * @param decoder Decoder to use to decrypt the NoiseHandshakeMessages
    */
-  subscribe(decoder: Decoder<NoiseHandshakeMessage>): Promise<void>;
+  subscribe(decoder: IDecoder<NoiseHandshakeMessage>): Promise<void>;
 
   /**
    * should return messages received in a content topic
