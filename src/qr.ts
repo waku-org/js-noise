@@ -1,4 +1,4 @@
-import { decode, encode, fromUint8Array, toUint8Array } from "js-base64";
+import { decode, encodeURI, fromUint8Array, toUint8Array } from "js-base64";
 
 import { bytes32 } from "./@types/basic.js";
 
@@ -16,11 +16,11 @@ export class QR {
 
   // Serializes input parameters to a base64 string for exposure through QR code (used by WakuPairing)
   toString(): string {
-    let qr = encode(this.applicationName) + ":";
-    qr += encode(this.applicationVersion) + ":";
-    qr += encode(this.shardId) + ":";
-    qr += fromUint8Array(this.ephemeralKey) + ":";
-    qr += fromUint8Array(this.committedStaticKey);
+    let qr = encodeURI(this.applicationName) + ":";
+    qr += encodeURI(this.applicationVersion) + ":";
+    qr += encodeURI(this.shardId) + ":";
+    qr += fromUint8Array(this.ephemeralKey, true) + ":";
+    qr += fromUint8Array(this.committedStaticKey, true);
 
     return qr;
   }
