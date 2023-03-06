@@ -24,7 +24,7 @@ describe("js-noise: pairing object", () => {
   // Simulate waku. This code is not meant to be used IRL
   const msgEmitter = new EventEmitter();
   const sender = {
-    async publish(encoder: IEncoder, msg: IMessage): Promise<void> {
+    async send(encoder: IEncoder, msg: IMessage): Promise<void> {
       const protoMsg = await encoder.toProtoObj(msg);
       msgEmitter.emit(encoder.contentTopic, protoMsg);
     },
