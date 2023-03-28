@@ -1,4 +1,4 @@
-import { decode, encodeURI, fromUint8Array, toUint8Array } from "js-base64";
+import { fromString, toString } from "uint8arrays";
 
 import { bytes32 } from "./@types/basic.js";
 
@@ -16,11 +16,11 @@ export class QR {
 
   // Serializes input parameters to a base64 string for exposure through QR code (used by WakuPairing)
   toString(): string {
-    let qr = encodeURI(this.applicationName) + ":";
-    qr += encodeURI(this.applicationVersion) + ":";
-    qr += encodeURI(this.shardId) + ":";
-    qr += fromUint8Array(this.ephemeralKey, true) + ":";
-    qr += fromUint8Array(this.committedStaticKey, true);
+    let qr = toString(fromString(this.applicationName), "base64urlpad") + ":";
+    qr += toString(fromString(this.applicationVersion), "base64urlpad") + ":";
+    qr += toString(fromString(this.shardId), "base64urlpad") + ":";
+    qr += toString(this.ephemeralKey, "base64urlpad") + ":";
+    qr += toString(this.committedStaticKey, "base64urlpad");
 
     return qr;
   }
@@ -52,11 +52,11 @@ export class QR {
 
     if (values.length != 5) throw new Error("invalid qr string");
 
-    const applicationName = decode(values[0]);
-    const applicationVersion = decode(values[1]);
-    const shardId = decode(values[2]);
-    const ephemeralKey = toUint8Array(values[3]);
-    const committedStaticKey = toUint8Array(values[4]);
+    const applicationName = toString(fromString(values[0], "base64urlpad"));
+    const applicationVersion = toString(fromString(values[1], "base64urlpad"));
+    const shardId = toString(fromString(values[2], "base64urlpad"));
+    const ephemeralKey = fromString(values[3], "base64urlpad");
+    const committedStaticKey = fromString(values[4], "base64urlpad");
 
     return new QR(applicationName, applicationVersion, shardId, ephemeralKey, committedStaticKey);
   }
