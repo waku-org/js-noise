@@ -17,18 +17,10 @@ yarn add @waku/noise
 Refer to the specs and examples for details on how to use this library
 
 
-### Running example app
-
-```
-git clone https://github.com/waku-org/js-noise
-cd js-noise/example
-npm install  # or yarn
-npm start
-
-```
-
-Browse http://localhost:8080 to see the webapp where the pairing process can be initiated 
-
+### Usage
+An example of usage of js-noise library with waku can be seen here: https://examples.waku.org/noise-js/
+The code for this example is available in the [js-waku-examples repository](https://github.com/waku-org/js-waku-examples/tree/master/examples/noise-js) repository
+You can also refer to the test units available within this repository (`*.spec.ts`) for more examples on usage.
 
 ## Bugs, Questions & Features
 
