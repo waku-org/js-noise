@@ -20,7 +20,8 @@
     "ciphertext",
     "preshared",
     "libp2p",
-    "Authcode"
+    "Authcode",
+    "base64urlpad"
   ],
   "flagWords": [],
   "ignorePaths": [
