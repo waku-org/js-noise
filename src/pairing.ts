@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, IEncoder, IMessage } from "@waku/interfaces";
+import type { IDecoder, ISender } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -22,18 +22,6 @@ import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
 const log = debug("waku:noise:pairing");
-
-/**
- * Sender interface that an object must implement so the pairing object can publish noise messages
- */
-export interface Sender {
-  /**
-   * Publish a message
-   * @param encoder NoiseHandshakeEncoder encoder to use to encrypt the messages
-   * @param msg message to broadcast
-   */
-  send(encoder: IEncoder, msg: IMessage): Promise<void>;
-}
 
 /**
  * Responder interface than an object must implement so the pairing object can receive noise messages
@@ -122,7 +110,7 @@ export class WakuPairing {
    * @param myEphemeralKey optional ephemeral key
    */
   constructor(
-    private sender: Sender,
+    private sender: ISender,
     private responder: Responder,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
