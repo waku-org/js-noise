@@ -32,7 +32,7 @@ export interface Sender {
    * @param encoder NoiseHandshakeEncoder encoder to use to encrypt the messages
    * @param msg message to broadcast
    */
-  publish(encoder: IEncoder, msg: IMessage): Promise<void>;
+  send(encoder: IEncoder, msg: IMessage): Promise<void>;
 }
 
 /**
@@ -258,7 +258,9 @@ export class WakuPairing {
     // We prepare a message from initiator's payload2
     // At this point wakuMsg is sent over the Waku network to responder content topic
     let encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // We generate an authorization code using the handshake state
     // this check has to be confirmed with a user interaction, comparing auth codes in both ends
@@ -294,7 +296,9 @@ export class WakuPairing {
     });
 
     encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // Secure Transfer Phase
     this.handshakeResult = this.handshake.finalizeHandshake();
@@ -333,7 +337,9 @@ export class WakuPairing {
 
     // We prepare a Waku message from responder's payload2
     const encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // 3rd step
     // -> sA, sAeB, sAsB  {s}
