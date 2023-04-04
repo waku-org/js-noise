@@ -1,4 +1,4 @@
-import { DecodedMessage } from "@waku/core";
+import { DecodedMessage } from "@waku/core/lib/message/version_0";
 import type { IDecodedMessage, IDecoder, IEncoder, IMessage, IProtoMessage } from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
 import debug from "debug";
@@ -52,6 +52,7 @@ export class NoiseHandshakeEncoder implements IEncoder {
       rateLimitProof: undefined,
       payload: this.hsStepResult.payload2.serialize(),
       version: version,
+      meta: undefined,
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
     };
@@ -74,7 +75,7 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
     return Promise.resolve(protoMessage as IProtoMessage);
   }
 
-  async fromProtoObj(proto: IProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
+  async fromProtoObj(pubSubTopic: string, proto: IProtoMessage): Promise<NoiseHandshakeMessage | undefined> {
     // https://github.com/status-im/js-waku/issues/921
     if (proto.version === undefined) {
       proto.version = 0;
@@ -90,7 +91,7 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
       return;
     }
 
-    return new NoiseHandshakeMessage(proto);
+    return new NoiseHandshakeMessage(pubSubTopic, proto);
   }
 }
 
@@ -101,8 +102,8 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
 export class NoiseSecureMessage extends DecodedMessage implements IDecodedMessage {
   private readonly _decodedPayload: Uint8Array;
 
-  constructor(proto: WakuMessage, decodedPayload: Uint8Array) {
-    super(proto);
+  constructor(pubSubTopic: string, proto: WakuMessage, decodedPayload: Uint8Array) {
+    super(pubSubTopic, proto);
     this._decodedPayload = decodedPayload;
   }
 
@@ -146,6 +147,7 @@ export class NoiseSecureTransferEncoder implements IEncoder {
       rateLimitProof: undefined,
       ephemeral: this.ephemeral,
       version: version,
+      meta: undefined,
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
     };
@@ -171,7 +173,7 @@ export class NoiseSecureTransferDecoder implements IDecoder<NoiseSecureMessage> 
     return Promise.resolve(protoMessage as IProtoMessage);
   }
 
-  async fromProtoObj(proto: IProtoMessage): Promise<NoiseSecureMessage | undefined> {
+  async fromProtoObj(pubSubTopic: string, proto: IProtoMessage): Promise<NoiseSecureMessage | undefined> {
     // https://github.com/status-im/js-waku/issues/921
     if (proto.version === undefined) {
       proto.version = 0;
@@ -187,7 +189,7 @@ export class NoiseSecureTransferDecoder implements IDecoder<NoiseSecureMessage> 
     try {
       const payloadV2 = PayloadV2.deserialize(proto.payload);
       const decryptedPayload = this.hsResult.readMessage(payloadV2);
-      return new NoiseSecureMessage(proto, decryptedPayload);
+      return new NoiseSecureMessage(pubSubTopic, proto, decryptedPayload);
     } catch (err) {
       log("could not decode message ", err);
       return;

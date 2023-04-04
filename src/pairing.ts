@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, IEncoder, IMessage } from "@waku/interfaces";
+import type { IDecoder, ISender } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -22,18 +22,6 @@ import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
 const log = debug("waku:noise:pairing");
-
-/**
- * Sender interface that an object must implement so the pairing object can publish noise messages
- */
-export interface Sender {
-  /**
-   * Publish a message
-   * @param encoder NoiseHandshakeEncoder encoder to use to encrypt the messages
-   * @param msg message to broadcast
-   */
-  publish(encoder: IEncoder, msg: IMessage): Promise<void>;
-}
 
 /**
  * Responder interface than an object must implement so the pairing object can receive noise messages
@@ -122,7 +110,7 @@ export class WakuPairing {
    * @param myEphemeralKey optional ephemeral key
    */
   constructor(
-    private sender: Sender,
+    private sender: ISender,
     private responder: Responder,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
@@ -258,7 +246,9 @@ export class WakuPairing {
     // We prepare a message from initiator's payload2
     // At this point wakuMsg is sent over the Waku network to responder content topic
     let encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // We generate an authorization code using the handshake state
     // this check has to be confirmed with a user interaction, comparing auth codes in both ends
@@ -294,7 +284,9 @@ export class WakuPairing {
     });
 
     encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // Secure Transfer Phase
     this.handshakeResult = this.handshake.finalizeHandshake();
@@ -333,7 +325,9 @@ export class WakuPairing {
 
     // We prepare a Waku message from responder's payload2
     const encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
-    await this.sender.publish(encoder, {});
+    await this.sender.send(encoder, {
+      payload: new Uint8Array(),
+    });
 
     // 3rd step
     // -> sA, sAeB, sAsB  {s}
