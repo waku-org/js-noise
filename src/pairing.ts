@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { ISender, IMetaSetter, IReceiver } from "@waku/interfaces";
+import type { IMetaSetter, IReceiver, ISender } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -249,7 +249,10 @@ export class WakuPairing {
 
     // 2nd step
     // <- sB, eAsB    {r}
-    hsStep = await this.executeReadStepWithNextMessage(this.handshake.hs.toMessageNametag(), subscriptionIterator.iterator);
+    hsStep = await this.executeReadStepWithNextMessage(
+      this.handshake.hs.toMessageNametag(),
+      subscriptionIterator.iterator
+    );
 
     await subscriptionIterator.stop();
 
@@ -319,7 +322,10 @@ export class WakuPairing {
     // -> sA, sAeB, sAsB  {s}
 
     // The responder reads the initiator's payload sent by the initiator
-    hsStep = await this.executeReadStepWithNextMessage(this.handshake.hs.toMessageNametag(), subscriptionIterator.iterator);
+    hsStep = await this.executeReadStepWithNextMessage(
+      this.handshake.hs.toMessageNametag(),
+      subscriptionIterator.iterator
+    );
 
     await subscriptionIterator.stop();
 
