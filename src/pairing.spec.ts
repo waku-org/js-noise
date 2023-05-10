@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, IEncoder, IMessage, ISender } from "@waku/interfaces";
+import type { IDecoder, IEncoder, IMessage, IProtoMessage, ISender } from "@waku/interfaces";
 import { expect } from "chai";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -12,6 +12,15 @@ import { MessageNametagBufferSize } from "./messagenametag";
 import { ResponderParameters, WakuPairing } from "./pairing";
 
 const PUBSUB_TOPIC = "default";
+
+const EMPTY_PROTOMESSAGE = {
+  timestamp: undefined,
+  contentTopic: "",
+  ephemeral: undefined,
+  meta: undefined,
+  rateLimitProof: undefined,
+  version: undefined,
+};
 
 describe("js-noise: pairing object", () => {
   const rng = new HMACDRBG();
@@ -115,6 +124,77 @@ describe("js-noise: pairing object", () => {
       if (err instanceof Error) message = err.message;
       else message = String(err);
       expect(message).to.be.equals("pairing has timed out");
+    }
+  });
+
+  it("pairs and `meta` field is encoded", async function () {
+    const bobStaticKey = generateX25519KeyPair();
+    const aliceStaticKey = generateX25519KeyPair();
+
+    // Encode the length of the payload
+    // Not a relevant real life example
+    const metaSetter = (msg: IProtoMessage & { meta: undefined }): Uint8Array => {
+      const buffer = new ArrayBuffer(4);
+      const view = new DataView(buffer);
+      view.setUint32(0, msg.payload.length, false);
+      return new Uint8Array(buffer);
+    };
+
+    const recvParameters = new ResponderParameters();
+    const bobPairingObj = new WakuPairing(sender, responder, bobStaticKey, recvParameters, undefined, { metaSetter });
+    const bobExecP1 = bobPairingObj.execute();
+
+    // Confirmation is done by manually
+    confirmAuthCodeFlow(bobPairingObj, true);
+
+    const initParameters = bobPairingObj.getPairingInfo();
+    const alicePairingObj = new WakuPairing(sender, responder, aliceStaticKey, initParameters, undefined, {
+      metaSetter,
+    });
+    const aliceExecP1 = alicePairingObj.execute();
+
+    // Confirmation is done manually
+    confirmAuthCodeFlow(alicePairingObj, true);
+
+    const [bobCodecs, aliceCodecs] = await Promise.all([bobExecP1, aliceExecP1]);
+
+    const bobEncoder = bobCodecs[0];
+    const bobDecoder = bobCodecs[1];
+    const aliceEncoder = aliceCodecs[0];
+    const aliceDecoder = aliceCodecs[1];
+
+    // We test read/write of random messages exchanged between Alice and Bob
+    // Note that we exchange more than the number of messages contained in the nametag buffer to test if they are filled correctly as the communication proceeds
+    for (let i = 0; i < 10 * MessageNametagBufferSize; i++) {
+      // Alice writes to Bob
+      let message = randomBytes(32, rng);
+      let encodedMsg = await aliceEncoder.toWire({ payload: message });
+      let readMessageProto = await bobDecoder.fromWireToProtoObj(encodedMsg!);
+      let readMessage = await bobDecoder.fromProtoObj(PUBSUB_TOPIC, readMessageProto!);
+
+      expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+
+      let expectedMeta = metaSetter({
+        ...EMPTY_PROTOMESSAGE,
+        payload: readMessageProto!.payload,
+      });
+
+      expect(readMessage!.meta).to.deep.eq(expectedMeta);
+
+      // Bob writes to Alice
+      message = randomBytes(32, rng);
+      encodedMsg = await bobEncoder.toWire({ payload: message });
+      readMessageProto = await aliceDecoder.fromWireToProtoObj(encodedMsg!);
+      readMessage = await aliceDecoder.fromProtoObj(PUBSUB_TOPIC, readMessageProto!);
+
+      expect(uint8ArrayEquals(message, readMessage!.payload)).to.be.true;
+
+      expectedMeta = metaSetter({
+        ...EMPTY_PROTOMESSAGE,
+        payload: readMessageProto!.payload,
+      });
+
+      expect(readMessage!.meta).to.deep.eq(expectedMeta);
     }
   });
 });

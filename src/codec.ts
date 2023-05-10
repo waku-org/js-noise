@@ -1,5 +1,5 @@
 import { DecodedMessage } from "@waku/core/lib/message/version_0";
-import type { IDecodedMessage, IDecoder, IEncoder, IMessage, IProtoMessage } from "@waku/interfaces";
+import type { IDecodedMessage, IDecoder, IEncoder, IMessage, IMetaSetter, IProtoMessage } from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
 import debug from "debug";
 
@@ -120,10 +120,17 @@ export class NoiseSecureMessage extends DecodedMessage implements IDecodedMessag
  */
 export class NoiseSecureTransferEncoder implements IEncoder {
   /**
-   * @param contentTopic content topic on which the encoded WakuMessages were sent
-   * @param hsResult handshake result obtained after the handshake is successful
+   * @param contentTopic content topic on which the encoded WakuMessages were sent.
+   * @param hsResult handshake result obtained after the handshake is successful.
+   * @param ephemeral whether messages should be tagged as ephemeral defaults to true.
+   * @param metaSetter callback function that set the `meta` field.
    */
-  constructor(public contentTopic: string, private hsResult: HandshakeResult, public ephemeral: boolean = true) {}
+  constructor(
+    public contentTopic: string,
+    private hsResult: HandshakeResult,
+    public ephemeral: boolean = true,
+    public metaSetter?: IMetaSetter
+  ) {}
 
   async toWire(message: IMessage): Promise<Uint8Array | undefined> {
     const protoMessage = await this.toProtoObj(message);
@@ -142,7 +149,7 @@ export class NoiseSecureTransferEncoder implements IEncoder {
 
     const payload = preparedPayload.serialize();
 
-    return {
+    const protoMessage = {
       payload,
       rateLimitProof: undefined,
       ephemeral: this.ephemeral,
@@ -151,6 +158,13 @@ export class NoiseSecureTransferEncoder implements IEncoder {
       contentTopic: this.contentTopic,
       timestamp: BigInt(timestamp.valueOf()) * OneMillion,
     };
+
+    if (this.metaSetter) {
+      const meta = this.metaSetter(protoMessage);
+      return { ...protoMessage, meta };
+    }
+
+    return protoMessage;
   }
 }
 
