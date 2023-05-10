@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, ISender } from "@waku/interfaces";
+import type { IDecoder, IMetaSetter, ISender } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -55,6 +55,11 @@ function delay(ms: number): Promise<void> {
 
 const rng = new HMACDRBG();
 
+export interface EncoderParameters {
+  ephemeral?: boolean;
+  metaSetter?: IMetaSetter;
+}
+
 /**
  * Initiator parameters used to setup the pairing object
  */
@@ -108,13 +113,15 @@ export class WakuPairing {
    * @param myStaticKey x25519 keypair
    * @param pairingParameters Pairing parameters (depending if this is the initiator or responder)
    * @param myEphemeralKey optional ephemeral key
+   * @param encoderParameters optional parameters for the resulting encoders
    */
   constructor(
     private sender: ISender,
     private responder: Responder,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
-    private myEphemeralKey: KeyPair = generateX25519KeyPair()
+    private myEphemeralKey: KeyPair = generateX25519KeyPair(),
+    private readonly encoderParameters: EncoderParameters = {}
   ) {
     this.randomFixLenVal = randomBytes(32, rng);
     this.myCommittedStaticKey = commitPublicKey(this.myStaticKey.publicKey, this.randomFixLenVal);
@@ -293,7 +300,7 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
+    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult, this.encoderParameters);
   }
 
   private async responderHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
@@ -350,7 +357,7 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult);
+    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult, this.encoderParameters);
   }
 
   /**
@@ -358,13 +365,20 @@ export class WakuPairing {
    * to continue a session using a stored hsResult
    * @param contentTopic Content topic for the waku messages
    * @param hsResult Noise Pairing result
+   * @param encoderParameters Parameters for the resulting encoder
    * @returns an array with [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]
    */
   static getSecureCodec(
     contentTopic: string,
-    hsResult: HandshakeResult
+    hsResult: HandshakeResult,
+    encoderParameters: EncoderParameters
   ): [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder] {
-    const secureEncoder = new NoiseSecureTransferEncoder(contentTopic, hsResult);
+    const secureEncoder = new NoiseSecureTransferEncoder(
+      contentTopic,
+      hsResult,
+      encoderParameters.ephemeral,
+      encoderParameters.metaSetter
+    );
     const secureDecoder = new NoiseSecureTransferDecoder(contentTopic, hsResult);
 
     return [secureEncoder, secureDecoder];
