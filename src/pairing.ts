@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, ISender, IReceiver, IAsyncIterator } from "@waku/interfaces";
+import type { ISender, IReceiver } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
