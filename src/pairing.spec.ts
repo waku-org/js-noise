@@ -45,7 +45,7 @@ describe("js-noise: pairing object", () => {
   };
   const responder = {
     toSubscriptionIterator(decoder: IDecoder<NoiseHandshakeMessage>) {
-      async function* iterator() {
+      async function* iterator(): AsyncIterator<NoiseHandshakeMessage> {
         const msg = await pEvent(msgEmitter, decoder.contentTopic);
         const decodedMessage = await decoder.fromProtoObj(PUBSUB_TOPIC, msg);
         yield decodedMessage!;
@@ -57,8 +57,8 @@ describe("js-noise: pairing object", () => {
           // Do nothing. This is just a simulation
           console.debug("stopping subscription to", decoder.contentTopic);
         },
-      }
-    }
+      };
+    },
   } as any as IReceiver;
   // =================
 
