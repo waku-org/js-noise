@@ -45,14 +45,17 @@ describe("js-noise: pairing object", () => {
   };
   const responder = {
     toSubscriptionIterator(decoder: IDecoder<NoiseHandshakeMessage>) {
-      async function* iterator(): AsyncIterator<NoiseHandshakeMessage> {
-        const msg = await pEvent(msgEmitter, decoder.contentTopic);
-        const decodedMessage = await decoder.fromProtoObj(PUBSUB_TOPIC, msg);
-        yield decodedMessage!;
-      }
-
       return {
-        iterator: iterator(),
+        iterator: {
+          async next() {
+            const msg = await pEvent(msgEmitter, decoder.contentTopic);
+            const decodedMessage = await decoder.fromProtoObj(PUBSUB_TOPIC, msg);
+            return {
+              value: decodedMessage,
+              done: false,
+            };
+          },
+        },
         stop() {
           // Do nothing. This is just a simulation
           console.debug("stopping subscription to", decoder.contentTopic);
