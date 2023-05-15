@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, IMetaSetter, ISender } from "@waku/interfaces";
+import type { IMetaSetter, IReceiver, ISender } from "@waku/interfaces";
 import debug from "debug";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -22,32 +22,6 @@ import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
 const log = debug("waku:noise:pairing");
-
-/**
- * Responder interface than an object must implement so the pairing object can receive noise messages
- */
-export interface Responder {
-  /**
-   * subscribe to receive the messages from a content topic
-   * @param decoder Decoder to use to decrypt the NoiseHandshakeMessages
-   */
-  subscribe(decoder: IDecoder<NoiseHandshakeMessage>): Promise<void>;
-
-  /**
-   * should return messages received in a content topic
-   * messages should be kept in a queue, meaning that nextMessage
-   * will call pop in the queue to remove the oldest message received
-   * (it's important to maintain order of received messages)
-   * @param contentTopic content topic to get the next message from
-   */
-  nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage>;
-
-  /**
-   * Stop the subscription to the content topic
-   * @param contentTopic
-   */
-  stop(contentTopic: string): Promise<void>;
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -117,7 +91,7 @@ export class WakuPairing {
    */
   constructor(
     private sender: ISender,
-    private responder: Responder,
+    private responder: IReceiver,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
     private myEphemeralKey: KeyPair = generateX25519KeyPair(),
@@ -203,8 +177,8 @@ export class WakuPairing {
   }
 
   private async executeReadStepWithNextMessage(
-    contentTopic: string,
-    messageNametag: Uint8Array
+    messageNametag: Uint8Array,
+    iterator: AsyncIterator<NoiseHandshakeMessage>
   ): Promise<HandshakeStepResult> {
     // TODO: create test unit for this function
     let stopLoop = false;
@@ -219,9 +193,14 @@ export class WakuPairing {
 
     while (!stopLoop) {
       try {
-        const hsMessage = await this.responder.nextMessage(contentTopic);
+        const item = await iterator.next();
+
+        if (!item.value) {
+          throw Error("Received no message");
+        }
+
         const step = this.handshake.stepHandshake({
-          readPayloadV2: hsMessage.payloadV2,
+          readPayloadV2: item.value.payloadV2,
           messageNametag,
         });
         return step;
@@ -240,7 +219,7 @@ export class WakuPairing {
   private async initiatorHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
     const decoder = new NoiseHandshakeDecoder(this.contentTopic);
-    await this.responder.subscribe(decoder);
+    const subscriptionIterator = await this.responder.toSubscriptionIterator(decoder);
 
     // The handshake initiator writes a Waku2 payload v2 containing the handshake message
     // and the (encrypted) transport message
@@ -270,9 +249,12 @@ export class WakuPairing {
 
     // 2nd step
     // <- sB, eAsB    {r}
-    hsStep = await this.executeReadStepWithNextMessage(this.contentTopic, this.handshake.hs.toMessageNametag());
+    hsStep = await this.executeReadStepWithNextMessage(
+      this.handshake.hs.toMessageNametag(),
+      subscriptionIterator.iterator
+    );
 
-    await this.responder.stop(this.contentTopic);
+    await subscriptionIterator.stop();
 
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 
@@ -306,11 +288,11 @@ export class WakuPairing {
   private async responderHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
     const decoder = new NoiseHandshakeDecoder(this.contentTopic);
-    await this.responder.subscribe(decoder);
+    const subscriptionIterator = await this.responder.toSubscriptionIterator(decoder);
 
     // the received reads the initiator's payloads, and returns the (decrypted) transport message the initiator sent
     // Note that the received verifies if the received payloadV2 has the expected messageNametag set
-    let hsStep = await this.executeReadStepWithNextMessage(this.contentTopic, this.qrMessageNameTag);
+    let hsStep = await this.executeReadStepWithNextMessage(this.qrMessageNameTag, subscriptionIterator.iterator);
 
     const initiatorCommittedStaticKey = new Uint8Array(hsStep.transportMessage);
 
@@ -340,9 +322,12 @@ export class WakuPairing {
     // -> sA, sAeB, sAsB  {s}
 
     // The responder reads the initiator's payload sent by the initiator
-    hsStep = await this.executeReadStepWithNextMessage(this.contentTopic, this.handshake.hs.toMessageNametag());
+    hsStep = await this.executeReadStepWithNextMessage(
+      this.handshake.hs.toMessageNametag(),
+      subscriptionIterator.iterator
+    );
 
-    await this.responder.stop(this.contentTopic);
+    await subscriptionIterator.stop();
 
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 

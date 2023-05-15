@@ -14,7 +14,7 @@ import {
   StepHandshakeParameters,
 } from "./handshake.js";
 import { MessageNametagBuffer } from "./messagenametag.js";
-import { InitiatorParameters, Responder, ResponderParameters, WakuPairing } from "./pairing.js";
+import { InitiatorParameters, ResponderParameters, WakuPairing } from "./pairing.js";
 import {
   HandshakePattern,
   MessageDirection,
@@ -49,4 +49,4 @@ export { ChaChaPolyCipherState, NoisePublicKey };
 export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
 export { QR };
-export { InitiatorParameters, ResponderParameters, Responder, WakuPairing };
+export { InitiatorParameters, ResponderParameters, WakuPairing };

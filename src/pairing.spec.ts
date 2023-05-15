@@ -1,6 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
-import type { IDecoder, IEncoder, IMessage, IProtoMessage, ISender } from "@waku/interfaces";
+import type { IDecoder, IEncoder, IMessage, IProtoMessage, IReceiver, ISender } from "@waku/interfaces";
 import { expect } from "chai";
 import { EventEmitter } from "eventemitter3";
 import { pEvent } from "p-event";
@@ -43,24 +43,26 @@ describe("js-noise: pairing object", () => {
       };
     },
   };
-  const decoderMap: { [key: string]: IDecoder<NoiseHandshakeMessage> } = {};
   const responder = {
-    subscribe(decoder: IDecoder<NoiseHandshakeMessage>): Promise<void> {
-      return new Promise((resolve) => {
-        decoderMap[decoder.contentTopic] = decoder;
-        resolve();
-      });
+    toSubscriptionIterator(decoder: IDecoder<NoiseHandshakeMessage>) {
+      return {
+        iterator: {
+          async next() {
+            const msg = await pEvent(msgEmitter, decoder.contentTopic);
+            const decodedMessage = await decoder.fromProtoObj(PUBSUB_TOPIC, msg);
+            return {
+              value: decodedMessage,
+              done: false,
+            };
+          },
+        },
+        stop() {
+          // Do nothing. This is just a simulation
+          console.debug("stopping subscription to", decoder.contentTopic);
+        },
+      };
     },
-    async nextMessage(contentTopic: string): Promise<NoiseHandshakeMessage> {
-      const msg = await pEvent(msgEmitter, contentTopic);
-      const decodedMessage = await decoderMap[contentTopic].fromProtoObj(PUBSUB_TOPIC, msg);
-      return decodedMessage!;
-    },
-    async stop(contentTopic: string): Promise<void> {
-      // Do nothing. This is just a simulation
-      console.debug("stopping subscription to", contentTopic);
-    },
-  };
+  } as any as IReceiver;
   // =================
 
   it("should pair", async function () {
