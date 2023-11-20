@@ -31,19 +31,14 @@ export class HandshakeState {
   re?: bytes32;
   ss: SymmetricState;
   initiator: boolean;
-  handshakePattern: HandshakePattern;
   msgPatternIdx: number;
-  psk: Uint8Array;
 
-  constructor(hsPattern: HandshakePattern, psk: Uint8Array) {
+  constructor(public readonly handshakePattern: HandshakePattern, public psk: Uint8Array) {
     // By default the Handshake State initiator flag is set to false
     // Will be set to true when the user associated to the handshake state starts an handshake
     this.initiator = false;
 
-    this.handshakePattern = hsPattern;
-    this.psk = psk;
-
-    this.ss = new SymmetricState(hsPattern);
+    this.ss = new SymmetricState(handshakePattern);
 
     this.msgPatternIdx = 0;
   }
@@ -101,14 +96,14 @@ export class HandshakeState {
   }
 
   genMessageNametagSecrets(): { nms1: Uint8Array; nms2: Uint8Array } {
-    const [nms1, nms2] = HKDF(this.ss.h, new Uint8Array(), 2, 32);
+    const [nms1, nms2] = HKDF(this.handshakePattern.hash, this.ss.h, new Uint8Array(), 2, 32);
     return { nms1, nms2 };
   }
 
   // Uses the cryptographic information stored in the input handshake state to generate a random message nametag
   // In current implementation the messageNametag = HKDF(handshake hash value), but other derivation mechanisms can be implemented
   toMessageNametag(): MessageNametag {
-    const [output] = HKDF(this.ss.h, new Uint8Array(), 32, 1);
+    const [output] = HKDF(this.handshakePattern.hash, this.ss.h, new Uint8Array(), 32, 1);
     return output.subarray(0, MessageNametagLength);
   }
 

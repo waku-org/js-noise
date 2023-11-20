@@ -1,3 +1,6 @@
+import { Hash } from "@stablelib/hash";
+import { SHA256 } from "@stablelib/sha256";
+
 /**
  * The Noise tokens appearing in Noise (pre)message patterns
  * as in http://www.noiseprotocol.org/noise.html#handshake-pattern-basics
@@ -70,6 +73,7 @@ export class MessagePattern {
 export class HandshakePattern {
   constructor(
     public readonly name: string,
+    public readonly hash: new () => Hash,
     public readonly preMessagePatterns: Array<PreMessagePattern>,
     public readonly messagePatterns: Array<MessagePattern>
   ) {}
@@ -100,6 +104,7 @@ export class HandshakePattern {
 export const NoiseHandshakePatterns = {
   K1K1: new HandshakePattern(
     "Noise_K1K1_25519_ChaChaPoly_SHA256",
+    SHA256,
     [
       new PreMessagePattern(MessageDirection.r, [NoiseTokens.s]),
       new PreMessagePattern(MessageDirection.l, [NoiseTokens.s]),
@@ -112,6 +117,7 @@ export const NoiseHandshakePatterns = {
   ),
   XK1: new HandshakePattern(
     "Noise_XK1_25519_ChaChaPoly_SHA256",
+    SHA256,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.s])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
@@ -121,6 +127,7 @@ export const NoiseHandshakePatterns = {
   ),
   XX: new HandshakePattern(
     "Noise_XX_25519_ChaChaPoly_SHA256",
+    SHA256,
     [],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
@@ -130,6 +137,7 @@ export const NoiseHandshakePatterns = {
   ),
   XXpsk0: new HandshakePattern(
     "Noise_XXpsk0_25519_ChaChaPoly_SHA256",
+    SHA256,
     [],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.psk, NoiseTokens.e]),
@@ -139,6 +147,7 @@ export const NoiseHandshakePatterns = {
   ),
   WakuPairing: new HandshakePattern(
     "Noise_WakuPairing_25519_ChaChaPoly_SHA256",
+    SHA256,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.e])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e, NoiseTokens.ee]),
