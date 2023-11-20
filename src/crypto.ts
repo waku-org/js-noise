@@ -1,14 +1,12 @@
 import { ChaCha20Poly1305 } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { HKDF as hkdf } from "@stablelib/hkdf";
+import { RandomSource } from "@stablelib/random";
 import { hash } from "@stablelib/sha256";
-import * as x25519 from "@stablelib/x25519";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 
 import type { bytes32 } from "./@types/basic.js";
 import type { KeyPair } from "./@types/keypair.js";
-
-export const Curve25519KeySize = x25519.PUBLIC_KEY_LENGTH;
 
 /**
  * Generate hash using SHA2-256
@@ -17,21 +15,6 @@ export const Curve25519KeySize = x25519.PUBLIC_KEY_LENGTH;
  */
 export function hashSHA256(data: Uint8Array): Uint8Array {
   return hash(data);
-}
-
-/**
- * Convert an Uint8Array into a 32-byte value. If the input data length is different
- * from 32, throw an error. This is used mostly as a validation function to ensure
- * that an Uint8Array represents a valid x25519 key
- * @param s input data
- * @return 32-byte key
- */
-export function intoCurve25519Key(s: Uint8Array): bytes32 {
-  if (s.length != x25519.PUBLIC_KEY_LENGTH) {
-    throw new Error("invalid public key length");
-  }
-
-  return s;
 }
 
 /**
@@ -57,33 +40,6 @@ export function HKDF(
     result.push(k);
   }
   return result;
-}
-
-/**
- * Generate a random keypair
- * @returns Keypair
- */
-export function generateX25519KeyPair(): KeyPair {
-  const keypair = x25519.generateKeyPair();
-
-  return {
-    publicKey: keypair.publicKey,
-    privateKey: keypair.secretKey,
-  };
-}
-
-/**
- * Generate x25519 keypair using an input seed
- * @param seed 32-byte secret
- * @returns Keypair
- */
-export function generateX25519KeyPairFromSeed(seed: bytes32): KeyPair {
-  const keypair = x25519.generateKeyPairFromSeed(seed);
-
-  return {
-    publicKey: keypair.publicKey,
-    privateKey: keypair.secretKey,
-  };
 }
 
 /**
@@ -124,27 +80,6 @@ export function chaCha20Poly1305Decrypt(
 }
 
 /**
- * Perform a Diffie–Hellman key exchange
- * @param privateKey x25519 private key
- * @param publicKey x25519 public key
- * @returns shared secret
- */
-export function dh(privateKey: bytes32, publicKey: bytes32): bytes32 {
-  try {
-    const derivedU8 = x25519.sharedKey(privateKey, publicKey);
-
-    if (derivedU8.length === 32) {
-      return derivedU8;
-    }
-
-    return derivedU8.subarray(0, 32);
-  } catch (e) {
-    console.error(e);
-    return new Uint8Array(32);
-  }
-}
-
-/**
  * Generates a random static key commitment using a public key pk for randomness r as H(pk || s)
  * @param publicKey x25519 public key
  * @param r random fixed-length value
@@ -152,4 +87,44 @@ export function dh(privateKey: bytes32, publicKey: bytes32): bytes32 {
  */
 export function commitPublicKey(publicKey: bytes32, r: Uint8Array): bytes32 {
   return hashSHA256(uint8ArrayConcat([publicKey, r]));
+}
+
+/**
+ * Represents a key uses for Diffie–Hellman key exchange
+ */
+export interface DHKey {
+  /**
+   * Convert an Uint8Array into a 32-byte value. If the input data length is different
+   * from 32, throw an error. This is used mostly as a validation function to ensure
+   * that an Uint8Array represents a valid key
+   * @param s input data
+   * @return 32-byte key
+   */
+  intoKey(s: Uint8Array): bytes32;
+
+  /**
+   * Get key length
+   */
+  DHLen(): number;
+
+  /**
+   * Perform a Diffie–Hellman key exchange
+   * @param privateKey private key
+   * @param publicKey public key
+   * @returns shared secret
+   */
+  DH(privateKey: bytes32, publicKey: bytes32): bytes32;
+
+  /**
+   * Generate a random keypair
+   * @returns Keypair
+   */
+  generateKeyPair(prng?: RandomSource): KeyPair;
+
+  /**
+   * Generate keypair using an input seed
+   * @param seed 32-byte secret
+   * @returns Keypair
+   */
+  generateKeyPairFromSeed(seed: bytes32): KeyPair;
 }

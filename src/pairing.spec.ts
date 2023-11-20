@@ -7,7 +7,7 @@ import { pEvent } from "p-event";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { NoiseHandshakeMessage } from "./codec";
-import { generateX25519KeyPair } from "./crypto";
+import { DH25519 } from "./dh25519";
 import { MessageNametagBufferSize } from "./messagenametag";
 import { ResponderParameters, WakuPairing } from "./pairing";
 
@@ -66,8 +66,10 @@ describe("js-noise: pairing object", () => {
   // =================
 
   it("should pair", async function () {
-    const bobStaticKey = generateX25519KeyPair();
-    const aliceStaticKey = generateX25519KeyPair();
+    const dhKey = new DH25519();
+
+    const bobStaticKey = dhKey.generateKeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
 
     const recvParameters = new ResponderParameters();
     const bobPairingObj = new WakuPairing(sender, responder, bobStaticKey, recvParameters);
@@ -112,8 +114,9 @@ describe("js-noise: pairing object", () => {
   });
 
   it("should timeout", async function () {
-    const bobPairingObj = new WakuPairing(sender, responder, generateX25519KeyPair(), new ResponderParameters());
-    const alicePairingObj = new WakuPairing(sender, responder, generateX25519KeyPair(), bobPairingObj.getPairingInfo());
+    const dhKey = new DH25519();
+    const bobPairingObj = new WakuPairing(sender, responder, dhKey.generateKeyPair(), new ResponderParameters());
+    const alicePairingObj = new WakuPairing(sender, responder, dhKey.generateKeyPair(), bobPairingObj.getPairingInfo());
 
     const bobExecP1 = bobPairingObj.execute(1000);
     const aliceExecP1 = alicePairingObj.execute(1000);
@@ -130,8 +133,9 @@ describe("js-noise: pairing object", () => {
   });
 
   it("pairs and `meta` field is encoded", async function () {
-    const bobStaticKey = generateX25519KeyPair();
-    const aliceStaticKey = generateX25519KeyPair();
+    const dhKey = new DH25519();
+    const bobStaticKey = dhKey.generateKeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
 
     // Encode the length of the payload
     // Not a relevant real life example

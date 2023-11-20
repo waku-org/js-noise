@@ -14,7 +14,8 @@ import {
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
 } from "./codec.js";
-import { commitPublicKey, generateX25519KeyPair } from "./crypto.js";
+import { commitPublicKey } from "./crypto.js";
+import { DH25519 } from "./dh25519.js";
 import { Handshake, HandshakeResult, HandshakeStepResult, MessageNametagError } from "./handshake.js";
 import { MessageNametagLength } from "./messagenametag.js";
 import { NoiseHandshakePatterns } from "./patterns.js";
@@ -94,7 +95,7 @@ export class WakuPairing {
     private responder: IReceiver,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
-    private myEphemeralKey: KeyPair = generateX25519KeyPair(),
+    private myEphemeralKey: KeyPair = new DH25519().generateKeyPair(),
     private readonly encoderParameters: EncoderParameters = {}
   ) {
     this.randomFixLenVal = randomBytes(32, rng);
