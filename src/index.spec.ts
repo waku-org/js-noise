@@ -8,7 +8,7 @@ import { Handshake, HandshakeStepResult } from "./handshake";
 import { MessageNametagBuffer, MessageNametagLength } from "./messagenametag";
 import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
-import { NoiseHandshakePatterns } from "./patterns";
+import { NoiseHandshakePatterns, PayloadV2ProtocolIDs } from "./patterns";
 import { PayloadV2 } from "./payload";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
 
@@ -38,13 +38,15 @@ function randomNoisePublicKey(): NoisePublicKey {
 function randomPayloadV2(rng: HMACDRBG): PayloadV2 {
   const messageNametag = randomBytes(MessageNametagLength, rng);
   const protocolId = 14;
+  const protocolName = Object.keys(PayloadV2ProtocolIDs).find((key) => PayloadV2ProtocolIDs[key] === protocolId);
+  const handshakePattern = NoiseHandshakePatterns[protocolName!];
   const handshakeMessage = [randomNoisePublicKey(), randomNoisePublicKey(), randomNoisePublicKey()];
   const transportMessage = randomBytes(128);
-  return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);
+  return new PayloadV2(messageNametag, protocolId, handshakePattern.tagLen, handshakeMessage, transportMessage);
 }
 
 describe("js-noise", () => {
-  const rng = new HMACDRBG();
+  const rng = new HMACDRBG(undefined);
 
   it("ChaChaPoly Encryption/Decryption: random byte sequences", function () {
     const cipherState = randomChaChaPolyCipherState(rng);
@@ -241,7 +243,7 @@ describe("js-noise", () => {
 
   it("Noise State Machine: Cipher State primitives", function () {
     // We select one supported handshake pattern and we initialize a symmetric state
-    const hsPattern = NoiseHandshakePatterns.XX;
+    const hsPattern = NoiseHandshakePatterns.Noise_XX_25519_ChaChaPoly_SHA256;
     let symmetricState = new SymmetricState(hsPattern);
 
     // We get all the Symmetric State field
@@ -352,8 +354,8 @@ describe("js-noise", () => {
     expect(uint8ArrayEquals(cs1.getKey(), cs2.getKey())).to.be.false;
   });
 
-  it("Noise XX Handhshake and message encryption (extended test)", function () {
-    const hsPattern = NoiseHandshakePatterns.XX;
+  it("Noise XX Handshake and message encryption (extended test)", function () {
+    const hsPattern = NoiseHandshakePatterns.Noise_XX_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
     const aliceStaticKey = generateX25519KeyPair();
@@ -464,7 +466,7 @@ describe("js-noise", () => {
   });
 
   it("Noise XXpsk0 Handhshake and message encryption (short test)", function () {
-    const hsPattern = NoiseHandshakePatterns.XXpsk0;
+    const hsPattern = NoiseHandshakePatterns.Noise_XXpsk0_25519_ChaChaPoly_SHA256;
 
     // We generate a random psk
     const psk = randomBytes(32, rng);
@@ -559,7 +561,7 @@ describe("js-noise", () => {
   });
 
   it("Noise K1K1 Handhshake and message encryption (short test)", function () {
-    const hsPattern = NoiseHandshakePatterns.K1K1;
+    const hsPattern = NoiseHandshakePatterns.Noise_K1K1_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
     const aliceStaticKey = generateX25519KeyPair();
@@ -661,7 +663,7 @@ describe("js-noise", () => {
   });
 
   it("Noise XK1 Handhshake and message encryption (short test)", function () {
-    const hsPattern = NoiseHandshakePatterns.XK1;
+    const hsPattern = NoiseHandshakePatterns.Noise_XK1_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
     const aliceStaticKey = generateX25519KeyPair();
