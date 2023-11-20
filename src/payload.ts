@@ -7,6 +7,8 @@ import { NoiseHandshakePatterns, PayloadV2ProtocolIDs } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
 import { readUIntLE, writeUIntLE } from "./utils.js";
 
+const authDataLen = 16;
+
 /**
  * PayloadV2 defines an object for Waku payloads with version 2 as in
  * https://rfc.vac.dev/spec/35/#public-keys-serialization
@@ -17,7 +19,6 @@ export class PayloadV2 {
   constructor(
     public messageNametag: MessageNametag = new Uint8Array(MessageNametagLength),
     public protocolId = 0,
-    public tagLen = 0,
     public handshakeMessage: Array<NoisePublicKey> = [],
     public transportMessage: Uint8Array = new Uint8Array()
   ) {}
@@ -31,7 +32,6 @@ export class PayloadV2 {
     r.protocolId = this.protocolId;
     r.transportMessage = new Uint8Array(this.transportMessage);
     r.messageNametag = new Uint8Array(this.messageNametag);
-    r.tagLen = this.tagLen;
     for (let i = 0; i < this.handshakeMessage.length; i++) {
       r.handshakeMessage.push(this.handshakeMessage[i].clone());
     }
@@ -138,7 +138,6 @@ export class PayloadV2 {
     }
 
     const pattern = NoiseHandshakePatterns[protocolName];
-    const tagLen = pattern ? pattern.tagLen : 0;
     const keySize = pattern ? pattern.dhKey.DHLen() : 0;
 
     i++;
@@ -169,7 +168,7 @@ export class PayloadV2 {
         written += pkLen;
         // If the key is encrypted, we only read the encrypted X coordinate and the authorization tag, and we deserialize into a Noise Public Key
       } else if (flag === 1) {
-        const pkLen = 1 + keySize + tagLen;
+        const pkLen = 1 + keySize + authDataLen;
         handshakeMessage.push(NoisePublicKey.deserialize(payload.subarray(i, i + pkLen)));
         i += pkLen;
         written += pkLen;
@@ -186,6 +185,6 @@ export class PayloadV2 {
     const transportMessage = payload.subarray(i, i + transportMessageLen);
     i += transportMessageLen;
 
-    return new PayloadV2(messageNametag, protocolId, tagLen, handshakeMessage, transportMessage);
+    return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);
   }
 }

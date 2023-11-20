@@ -1,4 +1,3 @@
-import { TAG_LENGTH as ChaChaPolyTagLen } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { SHA256 } from "@stablelib/sha256";
 
@@ -81,7 +80,6 @@ export class HandshakePattern {
     public readonly name: string,
     dhKeyType: new () => DHKey,
     public readonly hash: new () => Hash,
-    public readonly tagLen: number,
     public readonly preMessagePatterns: Array<PreMessagePattern>,
     public readonly messagePatterns: Array<MessagePattern>
   ) {
@@ -116,7 +114,6 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
     "Noise_K1K1_25519_ChaChaPoly_SHA256",
     DH25519,
     SHA256,
-    ChaChaPolyTagLen,
     [
       new PreMessagePattern(MessageDirection.r, [NoiseTokens.s]),
       new PreMessagePattern(MessageDirection.l, [NoiseTokens.s]),
@@ -131,7 +128,6 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
     "Noise_XK1_25519_ChaChaPoly_SHA256",
     DH25519,
     SHA256,
-    ChaChaPolyTagLen,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.s])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
@@ -143,7 +139,6 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
     "Noise_XX_25519_ChaChaPoly_SHA256",
     DH25519,
     SHA256,
-    ChaChaPolyTagLen,
     [],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e]),
@@ -155,7 +150,6 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
     "Noise_XXpsk0_25519_ChaChaPoly_SHA256",
     DH25519,
     SHA256,
-    ChaChaPolyTagLen,
     [],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.psk, NoiseTokens.e]),
@@ -167,7 +161,6 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
     "Noise_WakuPairing_25519_ChaChaPoly_SHA256",
     DH25519,
     SHA256,
-    ChaChaPolyTagLen,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.e])],
     [
       new MessagePattern(MessageDirection.r, [NoiseTokens.e, NoiseTokens.ee]),

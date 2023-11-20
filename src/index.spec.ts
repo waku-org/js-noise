@@ -9,7 +9,7 @@ import { Handshake, HandshakeStepResult } from "./handshake";
 import { MessageNametagBuffer, MessageNametagLength } from "./messagenametag";
 import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
-import { NoiseHandshakePatterns, PayloadV2ProtocolIDs } from "./patterns";
+import { NoiseHandshakePatterns } from "./patterns";
 import { PayloadV2 } from "./payload";
 import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
 
@@ -40,11 +40,9 @@ function randomNoisePublicKey(): NoisePublicKey {
 function randomPayloadV2(rng: HMACDRBG): PayloadV2 {
   const messageNametag = randomBytes(MessageNametagLength, rng);
   const protocolId = 14;
-  const protocolName = Object.keys(PayloadV2ProtocolIDs).find((key) => PayloadV2ProtocolIDs[key] === protocolId);
-  const handshakePattern = NoiseHandshakePatterns[protocolName!];
   const handshakeMessage = [randomNoisePublicKey(), randomNoisePublicKey(), randomNoisePublicKey()];
   const transportMessage = randomBytes(128);
-  return new PayloadV2(messageNametag, protocolId, handshakePattern.tagLen, handshakeMessage, transportMessage);
+  return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);
 }
 
 describe("js-noise", () => {
