@@ -1,10 +1,11 @@
+import { Hash } from "@stablelib/hash";
 import debug from "debug";
 import { fromString as uint8ArrayFromString } from "uint8arrays";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import type { bytes32 } from "./@types/basic.js";
-import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt, hashSHA256, HKDF } from "./crypto.js";
+import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt, hash, HKDF } from "./crypto.js";
 import { Nonce } from "./nonce.js";
 import { HandshakePattern } from "./patterns.js";
 
@@ -192,7 +193,7 @@ export class CipherState {
  * @param name name of the noise handshake pattern to hash
  * @returns sha256 digest of the protocol name
  */
-function hashProtocol(name: string): Uint8Array {
+function hashProtocol(h: new () => Hash, name: string): Uint8Array {
   // If protocol_name is less than or equal to HASHLEN bytes in length,
   // sets h equal to protocol_name with zero bytes appended to make HASHLEN bytes.
   // Otherwise sets h = HASH(protocol_name).
@@ -203,7 +204,7 @@ function hashProtocol(name: string): Uint8Array {
     h.set(protocolName);
     return h;
   } else {
-    return hashSHA256(protocolName);
+    return hash(h, protocolName);
   }
 }
 
@@ -217,7 +218,7 @@ export class SymmetricState {
   private ck: bytes32; // chaining key
 
   constructor(private readonly handshakePattern: HandshakePattern) {
-    this.h = hashProtocol(handshakePattern.name);
+    this.h = hashProtocol(handshakePattern.hash, handshakePattern.name);
     this.ck = this.h;
     this.cs = new CipherState();
   }
@@ -269,7 +270,7 @@ export class SymmetricState {
    */
   mixHash(data: Uint8Array): void {
     // We hash the previous handshake hash and input data and store the result in the Symmetric State's handshake hash value
-    this.h = hashSHA256(uint8ArrayConcat([this.h, data]));
+    this.h = hash(this.handshakePattern.hash, uint8ArrayConcat([this.h, data]));
     log("mixHash", this.h);
   }
 
