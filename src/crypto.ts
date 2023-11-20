@@ -2,23 +2,13 @@ import { ChaCha20Poly1305 } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { HKDF as hkdf } from "@stablelib/hkdf";
 import { RandomSource } from "@stablelib/random";
-import { hash } from "@stablelib/sha256";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 
 import type { bytes32 } from "./@types/basic.js";
 import type { KeyPair } from "./@types/keypair.js";
 
 /**
- * Generate hash using SHA2-256
- * @param data data to hash
- * @returns hash digest
- */
-export function hashSHA256(data: Uint8Array): Uint8Array {
-  return hash(data);
-}
-
-/**
- * HKDF key derivation function using SHA256
+ * HKDF key derivation function
  * @param ck chaining key
  * @param ikm input key material
  * @param length length of each generated key
@@ -79,14 +69,24 @@ export function chaCha20Poly1305Decrypt(
   return ctx.open(nonce, ciphertext, ad);
 }
 
+export function hash(hash: new () => Hash, data: Uint8Array): bytes32 {
+  const h = new hash();
+  h.update(data);
+  const digest = h.digest();
+  h.clean();
+  return digest;
+}
+
 /**
  * Generates a random static key commitment using a public key pk for randomness r as H(pk || s)
+ * @param h Hash function
  * @param publicKey x25519 public key
  * @param r random fixed-length value
  * @returns 32 byte hash
  */
-export function commitPublicKey(publicKey: bytes32, r: Uint8Array): bytes32 {
-  return hashSHA256(uint8ArrayConcat([publicKey, r]));
+export function commitPublicKey(h: new () => Hash, publicKey: bytes32, r: Uint8Array): bytes32 {
+  const data = uint8ArrayConcat([publicKey, r]);
+  return hash(h, data);
 }
 
 /**

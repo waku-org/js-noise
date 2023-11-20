@@ -1,8 +1,8 @@
+import { hash } from "@stablelib/sha256";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { MessageNametag } from "./@types/handshake.js";
-import { hashSHA256 } from "./crypto.js";
 import { writeUIntLE } from "./utils.js";
 
 export const MessageNametagLength = 16;
@@ -40,6 +40,7 @@ export class MessageNametagBuffer {
     if (this.secret) {
       for (let i = 0; i < this.buffer.length; i++) {
         const counterBytesLE = writeUIntLE(new Uint8Array(8), this.counter, 0, 8);
+        // TODO: determine if this hash should be sha256, or if it should depend on the handshake pattern
         const d = hashSHA256(uint8ArrayConcat([this.secret, counterBytesLE]));
         this.buffer[i] = toMessageNametag(d);
         this.counter++;
@@ -123,4 +124,13 @@ export class MessageNametagBuffer {
       console.debug("The message nametags buffer has no secret set");
     }
   }
+}
+
+/**
+ * Generate hash using SHA2-256
+ * @param data data to hash
+ * @returns hash digest
+ */
+function hashSHA256(data: Uint8Array): Uint8Array {
+  return hash(data);
 }

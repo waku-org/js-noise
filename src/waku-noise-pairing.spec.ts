@@ -1,5 +1,6 @@
 import { HMACDRBG } from "@stablelib/hmac-drbg";
 import { randomBytes } from "@stablelib/random";
+import { SHA256 } from "@stablelib/sha256";
 import { expect } from "chai";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
@@ -29,6 +30,7 @@ describe("Waku Noise Sessions", () => {
     // ==========
 
     const dhKey = new DH25519();
+    const hash = SHA256;
 
     const hsPattern = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256;
 
@@ -36,13 +38,13 @@ describe("Waku Noise Sessions", () => {
     const aliceStaticKey = dhKey.generateKeyPair();
     const aliceEphemeralKey = dhKey.generateKeyPair();
     const s = randomBytes(32, rng);
-    const aliceCommittedStaticKey = commitPublicKey(aliceStaticKey.publicKey, s);
+    const aliceCommittedStaticKey = commitPublicKey(hash, aliceStaticKey.publicKey, s);
 
     // Bob static/ephemeral key initialization and commitment
     const bobStaticKey = dhKey.generateKeyPair();
     const bobEphemeralKey = dhKey.generateKeyPair();
     const r = randomBytes(32, rng);
-    const bobCommittedStaticKey = commitPublicKey(bobStaticKey.publicKey, r);
+    const bobCommittedStaticKey = commitPublicKey(hash, bobStaticKey.publicKey, r);
 
     // Content topic information
     const applicationName = "waku-noise-sessions";
@@ -175,7 +177,7 @@ describe("Waku Noise Sessions", () => {
     expect(uint8ArrayEquals(aliceStep.transportMessage, sentTransportMessage));
 
     // Alice further checks if Bob's commitment opens to Bob's static key she just received
-    const expectedBobCommittedStaticKey = commitPublicKey(aliceHS.hs.rs!, aliceStep.transportMessage);
+    const expectedBobCommittedStaticKey = commitPublicKey(hash, aliceHS.hs.rs!, aliceStep.transportMessage);
 
     expect(uint8ArrayEquals(expectedBobCommittedStaticKey, bobCommittedStaticKey)).to.be.true;
 
@@ -212,7 +214,7 @@ describe("Waku Noise Sessions", () => {
     expect(uint8ArrayEquals(bobStep.transportMessage, sentTransportMessage));
 
     // Bob further checks if Alice's commitment opens to Alice's static key he just received
-    const expectedAliceCommittedStaticKey = commitPublicKey(bobHS.hs.rs!, bobStep.transportMessage);
+    const expectedAliceCommittedStaticKey = commitPublicKey(hash, bobHS.hs.rs!, bobStep.transportMessage);
 
     expect(uint8ArrayEquals(expectedAliceCommittedStaticKey, aliceCommittedStaticKey)).to.be.true;
 

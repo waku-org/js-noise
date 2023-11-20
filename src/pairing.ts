@@ -15,10 +15,9 @@ import {
   NoiseSecureTransferEncoder,
 } from "./codec.js";
 import { commitPublicKey } from "./crypto.js";
-import { DH25519 } from "./dh25519.js";
 import { Handshake, HandshakeResult, HandshakeStepResult, MessageNametagError } from "./handshake.js";
 import { MessageNametagLength } from "./messagenametag.js";
-import { NoiseHandshakePatterns } from "./patterns.js";
+import { HandshakePattern, NoiseHandshakePatterns } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
@@ -58,6 +57,7 @@ export class ResponderParameters {
  */
 export class WakuPairing {
   public readonly contentTopic: string;
+  private readonly hsPattern: HandshakePattern;
 
   private initiator: boolean;
   private randomFixLenVal: Uint8Array; // r or s depending on who is sending the message
@@ -95,11 +95,18 @@ export class WakuPairing {
     private responder: IReceiver,
     private myStaticKey: KeyPair,
     pairingParameters: InitiatorParameters | ResponderParameters,
-    private myEphemeralKey: KeyPair = new DH25519().generateKeyPair(),
+    private myEphemeralKey?: KeyPair,
     private readonly encoderParameters: EncoderParameters = {}
   ) {
+    this.hsPattern = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256;
     this.randomFixLenVal = randomBytes(32, rng);
-    this.myCommittedStaticKey = commitPublicKey(this.myStaticKey.publicKey, this.randomFixLenVal);
+    this.myCommittedStaticKey = commitPublicKey(this.hsPattern.hash, this.myStaticKey.publicKey, this.randomFixLenVal);
+
+    if (!this.myEphemeralKey) {
+      this.myEphemeralKey = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256.dhKey.generateKeyPair();
+    }
+
+    console.log(this.myEphemeralKey.publicKey);
 
     if (pairingParameters instanceof InitiatorParameters) {
       this.initiator = true;
@@ -125,8 +132,8 @@ export class WakuPairing {
     const preMessagePKs = [NoisePublicKey.fromPublicKey(this.qr.ephemeralKey)];
 
     this.handshake = new Handshake({
-      hsPattern: NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256,
-      ephemeralKey: myEphemeralKey,
+      hsPattern: this.hsPattern,
+      ephemeralKey: this.myEphemeralKey,
       staticKey: myStaticKey,
       prologue: this.qr.toByteArray(),
       preMessagePKs,
@@ -260,7 +267,11 @@ export class WakuPairing {
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 
     // Initiator further checks if responder's commitment opens to responder's static key received
-    const expectedResponderCommittedStaticKey = commitPublicKey(this.handshake.hs.rs, hsStep.transportMessage);
+    const expectedResponderCommittedStaticKey = commitPublicKey(
+      this.hsPattern.hash,
+      this.handshake.hs.rs,
+      hsStep.transportMessage
+    );
     if (!uint8ArrayEquals(expectedResponderCommittedStaticKey, this.qr.committedStaticKey)) {
       throw new Error("expected committed static key does not match the responder actual committed static key");
     }
@@ -333,7 +344,11 @@ export class WakuPairing {
     if (!this.handshake.hs.rs) throw new Error("invalid handshake state");
 
     // The responder further checks if the initiator's commitment opens to the initiator's static key received
-    const expectedInitiatorCommittedStaticKey = commitPublicKey(this.handshake.hs.rs, hsStep.transportMessage);
+    const expectedInitiatorCommittedStaticKey = commitPublicKey(
+      this.hsPattern.hash,
+      this.handshake.hs.rs,
+      hsStep.transportMessage
+    );
     if (!uint8ArrayEquals(expectedInitiatorCommittedStaticKey, initiatorCommittedStaticKey)) {
       throw new Error("expected committed static key does not match the initiator actual committed static key");
     }
