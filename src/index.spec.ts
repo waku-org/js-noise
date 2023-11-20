@@ -3,7 +3,8 @@ import { randomBytes } from "@stablelib/random";
 import { expect } from "chai";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
-import { chaCha20Poly1305Encrypt, dh, generateX25519KeyPair } from "./crypto";
+import { chaCha20Poly1305Encrypt } from "./crypto";
+import { DH25519 } from "./dh25519";
 import { Handshake, HandshakeStepResult } from "./handshake";
 import { MessageNametagBuffer, MessageNametagLength } from "./messagenametag";
 import { CipherState, createEmptyKey, SymmetricState } from "./noise";
@@ -31,7 +32,8 @@ function randomChaChaPolyCipherState(rng: HMACDRBG): ChaChaPolyCipherState {
 }
 
 function randomNoisePublicKey(): NoisePublicKey {
-  const keypair = generateX25519KeyPair();
+  const dhKey = new DH25519();
+  const keypair = dhKey.generateKeyPair();
   return new NoisePublicKey(0, keypair.publicKey);
 }
 
@@ -138,13 +140,15 @@ describe("js-noise", () => {
   });
 
   it("Noise State Machine: Diffie-Hellman operation", function () {
-    const aliceKey = generateX25519KeyPair();
-    const bobKey = generateX25519KeyPair();
+    const dhKey = new DH25519();
+
+    const aliceKey = dhKey.generateKeyPair();
+    const bobKey = dhKey.generateKeyPair();
 
     // A Diffie-Hellman operation between Alice's private key and Bob's public key must be equal to
     // a Diffie-hellman operation between Alice's public key and Bob's private key
-    const dh1 = dh(aliceKey.privateKey, bobKey.publicKey);
-    const dh2 = dh(bobKey.privateKey, aliceKey.publicKey);
+    const dh1 = dhKey.DH(aliceKey.privateKey, bobKey.publicKey);
+    const dh2 = dhKey.DH(bobKey.privateKey, aliceKey.publicKey);
 
     expect(uint8ArrayEquals(dh1, dh2)).to.be.true;
   });
@@ -355,13 +359,14 @@ describe("js-noise", () => {
   });
 
   it("Noise XX Handshake and message encryption (extended test)", function () {
+    const dhKey = new DH25519();
     const hsPattern = NoiseHandshakePatterns.Noise_XX_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
-    const aliceStaticKey = generateX25519KeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
     const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, initiator: true });
 
-    const bobStaticKey = generateX25519KeyPair();
+    const bobStaticKey = dhKey.generateKeyPair();
     const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey });
 
     let sentTransportMessage: Uint8Array;
@@ -466,16 +471,17 @@ describe("js-noise", () => {
   });
 
   it("Noise XXpsk0 Handhshake and message encryption (short test)", function () {
+    const dhKey = new DH25519();
     const hsPattern = NoiseHandshakePatterns.Noise_XXpsk0_25519_ChaChaPoly_SHA256;
 
     // We generate a random psk
     const psk = randomBytes(32, rng);
 
     // We initialize Alice's and Bob's Handshake State
-    const aliceStaticKey = generateX25519KeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
     const aliceHS = new Handshake({ hsPattern, staticKey: aliceStaticKey, psk, initiator: true });
 
-    const bobStaticKey = generateX25519KeyPair();
+    const bobStaticKey = dhKey.generateKeyPair();
     const bobHS = new Handshake({ hsPattern, staticKey: bobStaticKey, psk });
 
     let sentTransportMessage: Uint8Array;
@@ -561,12 +567,13 @@ describe("js-noise", () => {
   });
 
   it("Noise K1K1 Handhshake and message encryption (short test)", function () {
+    const dhKey = new DH25519();
     const hsPattern = NoiseHandshakePatterns.Noise_K1K1_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
-    const aliceStaticKey = generateX25519KeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
 
-    const bobStaticKey = generateX25519KeyPair();
+    const bobStaticKey = dhKey.generateKeyPair();
 
     // This handshake has the following pre-message pattern:
     // -> s
@@ -663,11 +670,12 @@ describe("js-noise", () => {
   });
 
   it("Noise XK1 Handhshake and message encryption (short test)", function () {
+    const dhKey = new DH25519();
     const hsPattern = NoiseHandshakePatterns.Noise_XK1_25519_ChaChaPoly_SHA256;
 
     // We initialize Alice's and Bob's Handshake State
-    const aliceStaticKey = generateX25519KeyPair();
-    const bobStaticKey = generateX25519KeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
+    const bobStaticKey = dhKey.generateKeyPair();
 
     // This handshake has the following pre-message pattern:
     // <- s

@@ -9,7 +9,8 @@ import {
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
 } from "./codec";
-import { commitPublicKey, generateX25519KeyPair } from "./crypto";
+import { commitPublicKey } from "./crypto";
+import { DH25519 } from "./dh25519";
 import { Handshake } from "./handshake";
 import { MessageNametagBufferSize, MessageNametagLength } from "./messagenametag";
 import { NoiseHandshakePatterns } from "./patterns";
@@ -27,17 +28,19 @@ describe("Waku Noise Sessions", () => {
     // Pairing Phase
     // ==========
 
+    const dhKey = new DH25519();
+
     const hsPattern = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256;
 
     // Alice static/ephemeral key initialization and commitment
-    const aliceStaticKey = generateX25519KeyPair();
-    const aliceEphemeralKey = generateX25519KeyPair();
+    const aliceStaticKey = dhKey.generateKeyPair();
+    const aliceEphemeralKey = dhKey.generateKeyPair();
     const s = randomBytes(32, rng);
     const aliceCommittedStaticKey = commitPublicKey(aliceStaticKey.publicKey, s);
 
     // Bob static/ephemeral key initialization and commitment
-    const bobStaticKey = generateX25519KeyPair();
-    const bobEphemeralKey = generateX25519KeyPair();
+    const bobStaticKey = dhKey.generateKeyPair();
+    const bobEphemeralKey = dhKey.generateKeyPair();
     const r = randomBytes(32, rng);
     const bobCommittedStaticKey = commitPublicKey(bobStaticKey.publicKey, r);
 

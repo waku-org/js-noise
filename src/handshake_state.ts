@@ -5,7 +5,7 @@ import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 import { bytes32 } from "./@types/basic.js";
 import { MessageNametag } from "./@types/handshake.js";
 import type { KeyPair } from "./@types/keypair.js";
-import { Curve25519KeySize, dh, generateX25519KeyPair, HKDF, intoCurve25519Key } from "./crypto.js";
+import { HKDF } from "./crypto.js";
 import { MessageNametagLength } from "./messagenametag.js";
 import { SymmetricState } from "./noise.js";
 import { HandshakePattern, MessageDirection, NoiseTokens, PreMessagePattern } from "./patterns.js";
@@ -212,7 +212,7 @@ export class HandshakeState {
               // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
               if (currPK.flag == 0) {
                 // Sets re and calls MixHash(re.public_key).
-                this.re = intoCurve25519Key(currPK.pk);
+                this.re = this.handshakePattern.dhKey.intoKey(currPK.pk);
                 this.ss.mixHash(this.re);
               } else {
                 throw new Error("noise read e, incorrect encryption flag for pre-message public key");
@@ -223,7 +223,7 @@ export class HandshakeState {
 
               // When writing, the user is sending a public key,
               // We check that the public part corresponds to the set local key and we call MixHash(e.public_key).
-              if (this.e && uint8ArrayEquals(this.e.publicKey, intoCurve25519Key(currPK.pk))) {
+              if (this.e && uint8ArrayEquals(this.e.publicKey, this.handshakePattern.dhKey.intoKey(currPK.pk))) {
                 this.ss.mixHash(this.e.publicKey);
               } else {
                 throw new Error("noise pre-message e key doesn't correspond to locally set e key pair");
@@ -256,7 +256,7 @@ export class HandshakeState {
               // We check if current key is encrypted or not. We assume pre-message public keys are all unencrypted on users' end
               if (currPK.flag == 0) {
                 // Sets re and calls MixHash(re.public_key).
-                this.rs = intoCurve25519Key(currPK.pk);
+                this.rs = this.handshakePattern.dhKey.intoKey(currPK.pk);
                 this.ss.mixHash(this.rs);
               } else {
                 throw new Error("noise read s, incorrect encryption flag for pre-message public key");
@@ -268,7 +268,7 @@ export class HandshakeState {
 
               // If writing, it means that the user is sending a public key,
               // We check that the public part corresponds to the set local key and we call MixHash(s.public_key).
-              if (this.s && uint8ArrayEquals(this.s.publicKey, intoCurve25519Key(currPK.pk))) {
+              if (this.s && uint8ArrayEquals(this.s.publicKey, this.handshakePattern.dhKey.intoKey(currPK.pk))) {
                 this.ss.mixHash(this.s.publicKey);
               } else {
                 throw new Error("noise pre-message s key doesn't correspond to locally set s key pair");
@@ -358,14 +358,14 @@ export class HandshakeState {
             if (currPK.flag == 0) {
               // Unencrypted Public Key
               // Sets re and calls MixHash(re.public_key).
-              this.re = intoCurve25519Key(currPK.pk);
+              this.re = this.handshakePattern.dhKey.intoKey(currPK.pk);
               this.ss.mixHash(this.re);
 
               // The following is out of specification: we call decryptAndHash for encrypted ephemeral keys, similarly as happens for (encrypted) static keys
             } else if (currPK.flag == 1) {
               // Encrypted public key
               // Decrypts re, sets re and calls MixHash(re.public_key).
-              this.re = intoCurve25519Key(this.ss.decryptAndHash(currPK.pk));
+              this.re = this.handshakePattern.dhKey.intoKey(this.ss.decryptAndHash(currPK.pk));
             } else {
               throw new Error("noise read e, incorrect encryption flag for public key");
             }
@@ -386,7 +386,7 @@ export class HandshakeState {
             log("noise write e");
 
             // We generate a new ephemeral keypair
-            this.e = generateX25519KeyPair();
+            this.e = this.handshakePattern.dhKey.generateKeyPair();
 
             // We update the state
             this.ss.mixHash(this.e.publicKey);
@@ -420,12 +420,12 @@ export class HandshakeState {
             if (currPK.flag == 0) {
               // Unencrypted Public Key
               // Sets re and calls MixHash(re.public_key).
-              this.rs = intoCurve25519Key(currPK.pk);
+              this.rs = this.handshakePattern.dhKey.intoKey(currPK.pk);
               this.ss.mixHash(this.rs);
             } else if (currPK.flag == 1) {
               // Encrypted public key
               // Decrypts rs, sets rs and calls MixHash(rs.public_key).
-              this.rs = intoCurve25519Key(this.ss.decryptAndHash(currPK.pk));
+              this.rs = this.handshakePattern.dhKey.intoKey(this.ss.decryptAndHash(currPK.pk));
             } else {
               throw new Error("noise read s, incorrect encryption flag for public key");
             }
@@ -449,7 +449,7 @@ export class HandshakeState {
             // We add the (encrypted) static public key to the Waku payload
             // Note that encS = (Enc(s) || tag) if encryption key is set, otherwise encS = s.
             // We distinguish these two cases by checking length of encryption and we set the proper encryption flag
-            if (encS.length > Curve25519KeySize) {
+            if (encS.length > this.handshakePattern.dhKey.DHLen()) {
               outHandshakeMessage.push(new NoisePublicKey(1, encS));
             } else {
               outHandshakeMessage.push(new NoisePublicKey(0, encS));
@@ -478,7 +478,7 @@ export class HandshakeState {
           }
 
           // Calls MixKey(DH(e, re)).
-          this.ss.mixKey(dh(this.e.privateKey, this.re));
+          this.ss.mixKey(this.handshakePattern.dhKey.DH(this.e.privateKey, this.re));
           break;
 
         case NoiseTokens.es:
@@ -493,13 +493,13 @@ export class HandshakeState {
               throw new Error("local or remote ephemeral/static key not set");
             }
 
-            this.ss.mixKey(dh(this.e.privateKey, this.rs));
+            this.ss.mixKey(this.handshakePattern.dhKey.DH(this.e.privateKey, this.rs));
           } else {
             if (!this.re || !this.s) {
               throw new Error("local or remote ephemeral/static key not set");
             }
 
-            this.ss.mixKey(dh(this.s.privateKey, this.re));
+            this.ss.mixKey(this.handshakePattern.dhKey.DH(this.s.privateKey, this.re));
           }
           break;
 
@@ -515,13 +515,13 @@ export class HandshakeState {
               throw new Error("local or remote ephemeral/static key not set");
             }
 
-            this.ss.mixKey(dh(this.s.privateKey, this.re));
+            this.ss.mixKey(this.handshakePattern.dhKey.DH(this.s.privateKey, this.re));
           } else {
             if (!this.rs || !this.e) {
               throw new Error("local or remote ephemeral/static key not set");
             }
 
-            this.ss.mixKey(dh(this.e.privateKey, this.rs));
+            this.ss.mixKey(this.handshakePattern.dhKey.DH(this.e.privateKey, this.rs));
           }
           break;
 
@@ -536,7 +536,7 @@ export class HandshakeState {
           }
 
           // Calls MixKey(DH(s, rs)).
-          this.ss.mixKey(dh(this.s.privateKey, this.rs));
+          this.ss.mixKey(this.handshakePattern.dhKey.DH(this.s.privateKey, this.rs));
           break;
       }
     }

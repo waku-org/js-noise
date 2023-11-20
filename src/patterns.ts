@@ -2,6 +2,9 @@ import { TAG_LENGTH as ChaChaPolyTagLen } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { SHA256 } from "@stablelib/sha256";
 
+import { DHKey } from "./crypto";
+import { DH25519 } from "./dh25519";
+
 /**
  * The Noise tokens appearing in Noise (pre)message patterns
  * as in http://www.noiseprotocol.org/noise.html#handshake-pattern-basics
@@ -72,13 +75,18 @@ export class MessagePattern {
  * handshake pre message patterns and the handshake message patterns
  */
 export class HandshakePattern {
+  public readonly dhKey: DHKey;
+
   constructor(
     public readonly name: string,
+    dhKeyType: new () => DHKey,
     public readonly hash: new () => Hash,
     public readonly tagLen: number,
     public readonly preMessagePatterns: Array<PreMessagePattern>,
     public readonly messagePatterns: Array<MessagePattern>
-  ) {}
+  ) {
+    this.dhKey = new dhKeyType();
+  }
 
   /**
    * Check HandshakePattern equality
@@ -106,6 +114,7 @@ export class HandshakePattern {
 export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
   Noise_K1K1_25519_ChaChaPoly_SHA256: new HandshakePattern(
     "Noise_K1K1_25519_ChaChaPoly_SHA256",
+    DH25519,
     SHA256,
     ChaChaPolyTagLen,
     [
@@ -120,6 +129,7 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
   ),
   Noise_XK1_25519_ChaChaPoly_SHA256: new HandshakePattern(
     "Noise_XK1_25519_ChaChaPoly_SHA256",
+    DH25519,
     SHA256,
     ChaChaPolyTagLen,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.s])],
@@ -131,6 +141,7 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
   ),
   Noise_XX_25519_ChaChaPoly_SHA256: new HandshakePattern(
     "Noise_XX_25519_ChaChaPoly_SHA256",
+    DH25519,
     SHA256,
     ChaChaPolyTagLen,
     [],
@@ -142,6 +153,7 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
   ),
   Noise_XXpsk0_25519_ChaChaPoly_SHA256: new HandshakePattern(
     "Noise_XXpsk0_25519_ChaChaPoly_SHA256",
+    DH25519,
     SHA256,
     ChaChaPolyTagLen,
     [],
@@ -153,6 +165,7 @@ export const NoiseHandshakePatterns: Record<string, HandshakePattern> = {
   ),
   Noise_WakuPairing_25519_ChaChaPoly_SHA256: new HandshakePattern(
     "Noise_WakuPairing_25519_ChaChaPoly_SHA256",
+    DH25519,
     SHA256,
     ChaChaPolyTagLen,
     [new PreMessagePattern(MessageDirection.l, [NoiseTokens.e])],

@@ -4,7 +4,7 @@ import {
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
 } from "./codec.js";
-import { generateX25519KeyPair, generateX25519KeyPairFromSeed } from "./crypto.js";
+import { DH25519 } from "./dh25519.js";
 import {
   Handshake,
   HandshakeParameters,
@@ -35,7 +35,7 @@ export {
   MessageNametagError,
   StepHandshakeParameters,
 };
-export { generateX25519KeyPair, generateX25519KeyPairFromSeed };
+export { DH25519 as X25519DHKey };
 export {
   HandshakePattern,
   MessageDirection,

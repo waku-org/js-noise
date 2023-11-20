@@ -2,7 +2,6 @@ import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { MessageNametag } from "./@types/handshake.js";
-import { Curve25519KeySize } from "./crypto.js";
 import { MessageNametagLength } from "./messagenametag.js";
 import { NoiseHandshakePatterns, PayloadV2ProtocolIDs } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
@@ -140,6 +139,7 @@ export class PayloadV2 {
 
     const pattern = NoiseHandshakePatterns[protocolName];
     const tagLen = pattern ? pattern.tagLen : 0;
+    const keySize = pattern ? pattern.dhKey.DHLen() : 0;
 
     i++;
 
@@ -163,13 +163,13 @@ export class PayloadV2 {
       const flag = payload[i];
       // If the key is unencrypted, we only read the X coordinate of the EC public key and we deserialize into a Noise Public Key
       if (flag === 0) {
-        const pkLen = 1 + Curve25519KeySize;
+        const pkLen = 1 + keySize;
         handshakeMessage.push(NoisePublicKey.deserialize(payload.subarray(i, i + pkLen)));
         i += pkLen;
         written += pkLen;
         // If the key is encrypted, we only read the encrypted X coordinate and the authorization tag, and we deserialize into a Noise Public Key
       } else if (flag === 1) {
-        const pkLen = 1 + Curve25519KeySize + tagLen;
+        const pkLen = 1 + keySize + tagLen;
         handshakeMessage.push(NoisePublicKey.deserialize(payload.subarray(i, i + pkLen)));
         i += pkLen;
         written += pkLen;
