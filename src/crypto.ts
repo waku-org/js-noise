@@ -1,4 +1,4 @@
-import { ChaCha20Poly1305, TAG_LENGTH } from "@stablelib/chacha20poly1305";
+import { ChaCha20Poly1305 } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { HKDF as hkdf } from "@stablelib/hkdf";
 import { hash } from "@stablelib/sha256";
@@ -9,8 +9,6 @@ import type { bytes32 } from "./@types/basic.js";
 import type { KeyPair } from "./@types/keypair.js";
 
 export const Curve25519KeySize = x25519.PUBLIC_KEY_LENGTH;
-
-export const ChachaPolyTagLen = TAG_LENGTH;
 
 /**
  * Generate hash using SHA2-256

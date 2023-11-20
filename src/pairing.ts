@@ -124,7 +124,7 @@ export class WakuPairing {
     const preMessagePKs = [NoisePublicKey.fromPublicKey(this.qr.ephemeralKey)];
 
     this.handshake = new Handshake({
-      hsPattern: NoiseHandshakePatterns.WakuPairing,
+      hsPattern: NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256,
       ephemeralKey: myEphemeralKey,
       staticKey: myStaticKey,
       prologue: this.qr.toByteArray(),

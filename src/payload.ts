@@ -2,9 +2,9 @@ import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import { MessageNametag } from "./@types/handshake.js";
-import { ChachaPolyTagLen, Curve25519KeySize } from "./crypto.js";
+import { Curve25519KeySize } from "./crypto.js";
 import { MessageNametagLength } from "./messagenametag.js";
-import { PayloadV2ProtocolIDs } from "./patterns.js";
+import { NoiseHandshakePatterns, PayloadV2ProtocolIDs } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
 import { readUIntLE, writeUIntLE } from "./utils.js";
 
@@ -15,22 +15,13 @@ import { readUIntLE, writeUIntLE } from "./utils.js";
  * and the transport message
  */
 export class PayloadV2 {
-  messageNametag: MessageNametag;
-  protocolId: number;
-  handshakeMessage: Array<NoisePublicKey>;
-  transportMessage: Uint8Array;
-
   constructor(
-    messageNametag: MessageNametag = new Uint8Array(MessageNametagLength),
-    protocolId = 0,
-    handshakeMessage: Array<NoisePublicKey> = [],
-    transportMessage: Uint8Array = new Uint8Array()
-  ) {
-    this.messageNametag = messageNametag;
-    this.protocolId = protocolId;
-    this.handshakeMessage = handshakeMessage;
-    this.transportMessage = transportMessage;
-  }
+    public messageNametag: MessageNametag = new Uint8Array(MessageNametagLength),
+    public protocolId = 0,
+    public tagLen = 0,
+    public handshakeMessage: Array<NoisePublicKey> = [],
+    public transportMessage: Uint8Array = new Uint8Array()
+  ) {}
 
   /**
    * Create a copy of the PayloadV2
@@ -41,6 +32,7 @@ export class PayloadV2 {
     r.protocolId = this.protocolId;
     r.transportMessage = new Uint8Array(this.transportMessage);
     r.messageNametag = new Uint8Array(this.messageNametag);
+    r.tagLen = this.tagLen;
     for (let i = 0; i < this.handshakeMessage.length; i++) {
       r.handshakeMessage.push(this.handshakeMessage[i].clone());
     }
@@ -146,6 +138,9 @@ export class PayloadV2 {
       throw new Error("protocolId not found");
     }
 
+    const pattern = NoiseHandshakePatterns[protocolName];
+    const tagLen = pattern ? pattern.tagLen : 0;
+
     i++;
 
     // We read the Handshake Message length (1 byte)
@@ -174,7 +169,7 @@ export class PayloadV2 {
         written += pkLen;
         // If the key is encrypted, we only read the encrypted X coordinate and the authorization tag, and we deserialize into a Noise Public Key
       } else if (flag === 1) {
-        const pkLen = 1 + Curve25519KeySize + ChachaPolyTagLen;
+        const pkLen = 1 + Curve25519KeySize + tagLen;
         handshakeMessage.push(NoisePublicKey.deserialize(payload.subarray(i, i + pkLen)));
         i += pkLen;
         written += pkLen;
@@ -191,6 +186,6 @@ export class PayloadV2 {
     const transportMessage = payload.subarray(i, i + transportMessageLen);
     i += transportMessageLen;
 
-    return new PayloadV2(messageNametag, protocolId, handshakeMessage, transportMessage);
+    return new PayloadV2(messageNametag, protocolId, tagLen, handshakeMessage, transportMessage);
   }
 }

@@ -27,7 +27,7 @@ describe("Waku Noise Sessions", () => {
     // Pairing Phase
     // ==========
 
-    const hsPattern = NoiseHandshakePatterns.WakuPairing;
+    const hsPattern = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256;
 
     // Alice static/ephemeral key initialization and commitment
     const aliceStaticKey = generateX25519KeyPair();
