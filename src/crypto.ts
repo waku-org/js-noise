@@ -1,6 +1,7 @@
 import { ChaCha20Poly1305, TAG_LENGTH } from "@stablelib/chacha20poly1305";
+import { Hash } from "@stablelib/hash";
 import { HKDF as hkdf } from "@stablelib/hkdf";
-import { hash, SHA256 } from "@stablelib/sha256";
+import { hash } from "@stablelib/sha256";
 import * as x25519 from "@stablelib/x25519";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 
@@ -43,9 +44,15 @@ export function intoCurve25519Key(s: Uint8Array): bytes32 {
  * @param numKeys number of keys to generate
  * @returns array  of `numValues` length containing Uint8Array keys of a given byte `length`
  */
-export function HKDF(ck: bytes32, ikm: Uint8Array, length: number, numKeys: number): Array<Uint8Array> {
+export function HKDF(
+  hash: new () => Hash,
+  ck: bytes32,
+  ikm: Uint8Array,
+  length: number,
+  numKeys: number
+): Array<Uint8Array> {
   const numBytes = length * numKeys;
-  const okm = new hkdf(SHA256, ikm, ck).expand(numBytes);
+  const okm = new hkdf(hash, ikm, ck).expand(numBytes);
   const result = [];
   for (let i = 0; i < numBytes; i += length) {
     const k = okm.subarray(i, i + length);

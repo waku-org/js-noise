@@ -216,11 +216,10 @@ export class SymmetricState {
   h: bytes32; // handshake hash
   private ck: bytes32; // chaining key
 
-  constructor(private readonly hsPattern: HandshakePattern) {
-    this.h = hashProtocol(hsPattern.name);
+  constructor(private readonly handshakePattern: HandshakePattern) {
+    this.h = hashProtocol(handshakePattern.name);
     this.ck = this.h;
     this.cs = new CipherState();
-    this.hsPattern = hsPattern;
   }
 
   /**
@@ -233,7 +232,7 @@ export class SymmetricState {
       this.cs.equals(other.cs) &&
       uint8ArrayEquals(this.ck, other.ck) &&
       uint8ArrayEquals(this.h, other.h) &&
-      this.hsPattern.equals(other.hsPattern)
+      this.handshakePattern.equals(other.handshakePattern)
     );
   }
 
@@ -242,7 +241,7 @@ export class SymmetricState {
    * @returns a copy of the SymmetricState
    */
   clone(): SymmetricState {
-    const ss = new SymmetricState(this.hsPattern);
+    const ss = new SymmetricState(this.handshakePattern);
     ss.cs = this.cs.clone();
     ss.ck = new Uint8Array(this.ck);
     ss.h = new Uint8Array(this.h);
@@ -256,7 +255,7 @@ export class SymmetricState {
    */
   mixKey(inputKeyMaterial: Uint8Array): void {
     // We derive two keys using HKDF
-    const [ck, tempK] = HKDF(this.ck, inputKeyMaterial, 32, 2);
+    const [ck, tempK] = HKDF(this.handshakePattern.hash, this.ck, inputKeyMaterial, 32, 2);
     // We update ck and the Cipher state's key k using the output of HDKF
     this.cs = new CipherState(tempK);
     this.ck = ck;
@@ -281,7 +280,7 @@ export class SymmetricState {
    */
   mixKeyAndHash(inputKeyMaterial: Uint8Array): void {
     // Derives 3 keys using HKDF, the chaining key and the input key material
-    const [tmpKey0, tmpKey1, tmpKey2] = HKDF(this.ck, inputKeyMaterial, 32, 3);
+    const [tmpKey0, tmpKey1, tmpKey2] = HKDF(this.handshakePattern.hash, this.ck, inputKeyMaterial, 32, 3);
     // Sets the chaining key
     this.ck = tmpKey0;
     // Updates the handshake hash value
@@ -334,7 +333,7 @@ export class SymmetricState {
    */
   split(): { cs1: CipherState; cs2: CipherState } {
     // Derives 2 keys using HKDF and the chaining key
-    const [tmpKey1, tmpKey2] = HKDF(this.ck, new Uint8Array(0), 32, 2);
+    const [tmpKey1, tmpKey2] = HKDF(this.handshakePattern.hash, this.ck, new Uint8Array(0), 32, 2);
     // Returns a tuple of two Cipher States initialized with the derived keys
     return {
       cs1: new CipherState(tmpKey1),

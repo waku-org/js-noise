@@ -173,7 +173,7 @@ export class Handshake {
 
   // Generates an 8 decimal digits authorization code using HKDF and the handshake state
   genAuthcode(): string {
-    const [output0] = HKDF(this.hs.ss.h, new Uint8Array(), 8, 1);
+    const [output0] = HKDF(this.hs.handshakePattern.hash, this.hs.ss.h, new Uint8Array(), 8, 1);
     const bn = new BN(output0);
     const code = bn.mod(new BN(100_000_000)).toString().padStart(8, "0");
     return code.toString();
