@@ -9,14 +9,14 @@ import {
   NoiseHandshakeEncoder,
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
-} from "./codec";
-import { commitPublicKey } from "./crypto";
-import { DH25519 } from "./dh25519";
-import { Handshake } from "./handshake";
-import { MessageNametagBufferSize, MessageNametagLength } from "./messagenametag";
-import { NoiseHandshakePatterns } from "./patterns";
-import { NoisePublicKey } from "./publickey";
-import { QR } from "./qr";
+} from "./codec.js";
+import { commitPublicKey } from "./crypto.js";
+import { DH25519 } from "./dh25519.js";
+import { Handshake } from "./handshake.js";
+import { MessageNametagBufferSize, MessageNametagLength } from "./messagenametag.js";
+import { NoiseHandshakePatterns } from "./patterns.js";
+import { NoisePublicKey } from "./publickey.js";
+import { QR } from "./qr.js";
 
 const PUBSUB_TOPIC = "default";
 
