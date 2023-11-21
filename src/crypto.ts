@@ -1,4 +1,3 @@
-import { ChaCha20Poly1305 } from "@stablelib/chacha20poly1305";
 import { Hash } from "@stablelib/hash";
 import { HKDF as hkdf } from "@stablelib/hkdf";
 import { RandomSource } from "@stablelib/random";
@@ -32,43 +31,6 @@ export function HKDF(
   return result;
 }
 
-/**
- * Encrypt and authenticate data using ChaCha20-Poly1305
- * @param plaintext data to encrypt
- * @param nonce 12 byte little-endian nonce
- * @param ad associated data
- * @param k 32-byte key
- * @returns sealed ciphertext including authentication tag
- */
-export function chaCha20Poly1305Encrypt(
-  plaintext: Uint8Array,
-  nonce: Uint8Array,
-  ad: Uint8Array,
-  k: bytes32
-): Uint8Array {
-  const ctx = new ChaCha20Poly1305(k);
-  return ctx.seal(nonce, plaintext, ad);
-}
-
-/**
- * Authenticate and decrypt data using ChaCha20-Poly1305
- * @param ciphertext data to decrypt
- * @param nonce 12 byte little-endian nonce
- * @param ad associated data
- * @param k 32-byte key
- * @returns plaintext if decryption was successful, `null` otherwise
- */
-export function chaCha20Poly1305Decrypt(
-  ciphertext: Uint8Array,
-  nonce: Uint8Array,
-  ad: Uint8Array,
-  k: bytes32
-): Uint8Array | null {
-  const ctx = new ChaCha20Poly1305(k);
-
-  return ctx.open(nonce, ciphertext, ad);
-}
-
 export function hash(hash: new () => Hash, data: Uint8Array): bytes32 {
   const h = new hash();
   h.update(data);
@@ -87,6 +49,31 @@ export function hash(hash: new () => Hash, data: Uint8Array): bytes32 {
 export function commitPublicKey(h: new () => Hash, publicKey: bytes32, r: Uint8Array): bytes32 {
   const data = uint8ArrayConcat([publicKey, r]);
   return hash(h, data);
+}
+
+/**
+ * Represents a Cipher
+ */
+export interface Cipher {
+  /**
+   * Encrypt and authenticate data
+   * @param k 32-byte key
+   * @param n 12 byte little-endian nonce
+   * @param ad associated data
+   * @param plaintext data to encrypt
+   * @returns sealed ciphertext including authentication tag
+   */
+  encrypt(k: bytes32, n: Uint8Array, ad: Uint8Array, plaintext: Uint8Array): Uint8Array;
+
+  /**
+   * Authenticate and decrypt data
+   * @param k 32-byte key
+   * @param n 12 byte little-endian nonce
+   * @param ad associated data
+   * @param ciphertext data to decrypt
+   * @returns plaintext if decryption was successful, `null` otherwise
+   */
+  decrypt(k: bytes32, n: Uint8Array, ad: Uint8Array, ciphertext: Uint8Array): Uint8Array | null;
 }
 
 /**

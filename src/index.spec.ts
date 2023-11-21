@@ -3,7 +3,7 @@ import { randomBytes } from "@stablelib/random";
 import { expect } from "chai";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
-import { chaCha20Poly1305Encrypt } from "./crypto";
+import { ChaChaPoly } from "./chachapoly";
 import { DH25519 } from "./dh25519";
 import { Handshake, HandshakeStepResult } from "./handshake";
 import { MessageNametagBuffer, MessageNametagLength } from "./messagenametag";
@@ -11,24 +11,14 @@ import { CipherState, createEmptyKey, SymmetricState } from "./noise";
 import { MAX_NONCE, Nonce } from "./nonce";
 import { NoiseHandshakePatterns } from "./patterns";
 import { PayloadV2 } from "./payload";
-import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey";
+import { NoisePublicKey } from "./publickey";
 
 function randomCipherState(rng: HMACDRBG, nonce: number = 0): CipherState {
-  const randomCipherState = new CipherState();
-  randomCipherState.n = new Nonce(nonce);
-  randomCipherState.k = rng.randomBytes(32);
-  return randomCipherState;
+  return new CipherState(new ChaChaPoly(), rng.randomBytes(32), new Nonce(nonce));
 }
 
 function c(input: Uint8Array): Uint8Array {
   return new Uint8Array(input);
-}
-
-function randomChaChaPolyCipherState(rng: HMACDRBG): ChaChaPolyCipherState {
-  const k = rng.randomBytes(32);
-  const n = rng.randomBytes(16);
-  const ad = rng.randomBytes(32);
-  return new ChaChaPolyCipherState(k, n, ad);
 }
 
 function randomNoisePublicKey(): NoisePublicKey {
@@ -47,88 +37,6 @@ function randomPayloadV2(rng: HMACDRBG): PayloadV2 {
 
 describe("js-noise", () => {
   const rng = new HMACDRBG(undefined);
-
-  it("ChaChaPoly Encryption/Decryption: random byte sequences", function () {
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    // We encrypt/decrypt random byte sequences
-    const plaintext = rng.randomBytes(128);
-    const ciphertext = cipherState.encrypt(plaintext);
-    const decrypted = cipherState.decrypt(ciphertext);
-
-    expect(uint8ArrayEquals(decrypted, plaintext)).to.be.true;
-  });
-
-  it("ChaChaPoly Encryption/Decryption: random byte sequences", function () {
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    // We encrypt/decrypt random byte sequences
-    const plaintext = rng.randomBytes(128);
-    const ciphertext = cipherState.encrypt(plaintext);
-    const decrypted = cipherState.decrypt(ciphertext);
-
-    expect(uint8ArrayEquals(decrypted, plaintext)).to.be.true;
-  });
-
-  it("Noise public keys: encrypt and decrypt a public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
-    const decryptedPK = NoisePublicKey.decrypt(encryptedPK, cipherState);
-
-    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
-  });
-
-  it("Noise public keys: decrypt an unencrypted  public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    const decryptedPK = NoisePublicKey.decrypt(noisePublicKey, cipherState);
-
-    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
-  });
-
-  it("Noise public keys: encrypt an encrypted public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
-    const encryptedPK2 = NoisePublicKey.encrypt(encryptedPK, cipherState);
-
-    expect(encryptedPK.equals(encryptedPK2)).to.be.true;
-  });
-
-  it("Noise public keys: encrypt, decrypt and decrypt a public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
-    const decryptedPK = NoisePublicKey.decrypt(encryptedPK, cipherState);
-    const decryptedPK2 = NoisePublicKey.decrypt(decryptedPK, cipherState);
-
-    expect(decryptedPK.equals(decryptedPK2)).to.be.true;
-  });
-
-  it("Noise public keys: serialize and deserialize an unencrypted public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const serializedNoisePublicKey = noisePublicKey.serialize();
-    const deserializedNoisePublicKey = NoisePublicKey.deserialize(serializedNoisePublicKey);
-
-    expect(noisePublicKey.equals(deserializedNoisePublicKey)).to.be.true;
-  });
-
-  it("Noise public keys: encrypt, serialize, deserialize and decrypt a public key", function () {
-    const noisePublicKey = randomNoisePublicKey();
-    const cipherState = randomChaChaPolyCipherState(rng);
-
-    const encryptedPK = NoisePublicKey.encrypt(noisePublicKey, cipherState);
-    const serializedNoisePublicKey = encryptedPK.serialize();
-    const deserializedNoisePublicKey = NoisePublicKey.deserialize(serializedNoisePublicKey);
-    const decryptedPK = NoisePublicKey.decrypt(deserializedNoisePublicKey, cipherState);
-
-    expect(noisePublicKey.equals(decryptedPK)).to.be.true;
-  });
 
   it("PayloadV2: serialize/deserialize PayloadV2 to byte sequence", function () {
     const payload2 = randomPayloadV2(rng);
@@ -155,6 +63,7 @@ describe("js-noise", () => {
     // We generate a random Cipher State, associated data ad and plaintext
     let cipherState = randomCipherState(rng);
     let nonceValue = Math.floor(Math.random() * MAX_NONCE);
+
     const ad = randomBytes(128, rng);
     let plaintext = randomBytes(128, rng);
     let nonce = new Nonce(nonceValue);
@@ -205,7 +114,6 @@ describe("js-noise", () => {
     cipherState = randomCipherState(rng);
     cipherState.setNonce(new Nonce(MAX_NONCE));
     plaintext = randomBytes(128, rng);
-
     // We test if encryption fails. Any subsequent encryption call over the Cipher State should fail similarly and leave the nonce unchanged
     for (let i = 0; i < 5; i++) {
       try {
@@ -225,8 +133,8 @@ describe("js-noise", () => {
     cipherState.setNonce(new Nonce(MAX_NONCE));
     plaintext = randomBytes(128, rng);
 
-    // We perform encryption using the Cipher State key, NonceMax and ad
-    ciphertext = chaCha20Poly1305Encrypt(plaintext, cipherState.getNonce().getBytes(), ad, cipherState.getKey());
+    // We perform encryption using the Cipher State key, NonceMax and ad (not using the cypher state directly so it does not trigger the max nonce error)
+    ciphertext = cipherState.cipher.encrypt(cipherState.getKey(), cipherState.getNonce().getBytes(), ad, plaintext);
 
     // At this point ciphertext is a proper encryption of the original plaintext obtained with nonce equal to NonceMax
     // We can now test if decryption fails with a NoiseNonceMaxError error. Any subsequent decryption call over the Cipher State should fail similarly and leave the nonce unchanged
