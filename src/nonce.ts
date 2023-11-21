@@ -31,11 +31,11 @@ export class Nonce {
 
   increment(): void {
     this.n++;
-    // Even though we're treating the nonce as 8 bytes, RFC7539 specifies 12 bytes for a nonce.
-    this.view.setUint32(4, this.n, true);
   }
 
-  getBytes(): Uint8Array {
+  getBytes(littleEndian: boolean): Uint8Array {
+    // Even though we're treating the nonce as 8 bytes, RFC7539 specifies 12 bytes for a nonce.
+    this.view.setUint32(4, this.n, littleEndian);
     return this.bytes;
   }
 

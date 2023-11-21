@@ -116,7 +116,7 @@ export class CipherState {
 
     if (this.hasKey()) {
       // If an encryption key is set in the Cipher state, we proceed with encryption
-      ciphertext = this.cipher.encrypt(this.k, this.n.getBytes(), ad, plaintext);
+      ciphertext = this.cipher.encrypt(this.k, this.n, ad, plaintext);
       this.n.increment();
       this.n.assertValue();
 
@@ -140,7 +140,7 @@ export class CipherState {
     this.n.assertValue();
 
     if (this.hasKey()) {
-      const plaintext = this.cipher.decrypt(this.k, this.n.getBytes(), ad, ciphertext);
+      const plaintext = this.cipher.decrypt(this.k, this.n, ad, ciphertext);
       if (!plaintext) {
         throw new Error("decryptWithAd failed");
       }

@@ -134,7 +134,7 @@ describe("js-noise", () => {
     plaintext = randomBytes(128, rng);
 
     // We perform encryption using the Cipher State key, NonceMax and ad (not using the cypher state directly so it does not trigger the max nonce error)
-    ciphertext = cipherState.cipher.encrypt(cipherState.getKey(), cipherState.getNonce().getBytes(), ad, plaintext);
+    ciphertext = cipherState.cipher.encrypt(cipherState.getKey(), cipherState.getNonce(), ad, plaintext);
 
     // At this point ciphertext is a proper encryption of the original plaintext obtained with nonce equal to NonceMax
     // We can now test if decryption fails with a NoiseNonceMaxError error. Any subsequent decryption call over the Cipher State should fail similarly and leave the nonce unchanged
