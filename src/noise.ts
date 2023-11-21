@@ -5,7 +5,7 @@ import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 import { equals as uint8ArrayEquals } from "uint8arrays/equals";
 
 import type { bytes32 } from "./@types/basic.js";
-import { chaCha20Poly1305Decrypt, chaCha20Poly1305Encrypt, hash, HKDF } from "./crypto.js";
+import { Cipher, hash, HKDF } from "./crypto.js";
 import { Nonce } from "./nonce.js";
 import { HandshakePattern } from "./patterns.js";
 
@@ -66,14 +66,16 @@ export class CipherState {
   // For performance reasons, the nonce is represented as a Nonce object
   // The nonce is treated as a uint64, even though the underlying `number` only has 52 safely-available bits.
   n: Nonce;
+  cipher: Cipher;
 
   /**
    * @param k encryption key
    * @param n nonce
    */
-  constructor(k: bytes32 = createEmptyKey(), n = new Nonce()) {
+  constructor(cipher: Cipher, k: bytes32 = createEmptyKey(), n = new Nonce()) {
     this.k = k;
     this.n = n;
+    this.cipher = cipher;
   }
 
   /**
@@ -81,7 +83,7 @@ export class CipherState {
    * @returns a copy of the CipherState
    */
   clone(): CipherState {
-    return new CipherState(new Uint8Array(this.k), new Nonce(this.n.getUint64()));
+    return new CipherState(this.cipher, new Uint8Array(this.k), new Nonce(this.n.getUint64()));
   }
 
   /**
@@ -114,7 +116,7 @@ export class CipherState {
 
     if (this.hasKey()) {
       // If an encryption key is set in the Cipher state, we proceed with encryption
-      ciphertext = chaCha20Poly1305Encrypt(plaintext, this.n.getBytes(), ad, this.k);
+      ciphertext = this.cipher.encrypt(this.k, this.n.getBytes(), ad, plaintext);
       this.n.increment();
       this.n.assertValue();
 
@@ -138,7 +140,7 @@ export class CipherState {
     this.n.assertValue();
 
     if (this.hasKey()) {
-      const plaintext = chaCha20Poly1305Decrypt(ciphertext, this.n.getBytes(), ad, this.k);
+      const plaintext = this.cipher.decrypt(this.k, this.n.getBytes(), ad, ciphertext);
       if (!plaintext) {
         throw new Error("decryptWithAd failed");
       }
@@ -220,7 +222,7 @@ export class SymmetricState {
   constructor(private readonly handshakePattern: HandshakePattern) {
     this.h = hashProtocol(handshakePattern.hash, handshakePattern.name);
     this.ck = this.h;
-    this.cs = new CipherState();
+    this.cs = new CipherState(handshakePattern.cipher);
   }
 
   /**
@@ -258,7 +260,7 @@ export class SymmetricState {
     // We derive two keys using HKDF
     const [ck, tempK] = HKDF(this.handshakePattern.hash, this.ck, inputKeyMaterial, 32, 2);
     // We update ck and the Cipher state's key k using the output of HDKF
-    this.cs = new CipherState(tempK);
+    this.cs = new CipherState(this.handshakePattern.cipher, tempK);
     this.ck = ck;
     log("mixKey", this.ck, this.cs.k);
   }
@@ -288,7 +290,7 @@ export class SymmetricState {
     this.mixHash(tmpKey1);
     // Updates the Cipher state's key
     // Note for later support of 512 bits hash functions: "If HASHLEN is 64, then truncates tempKeys[2] to 32 bytes."
-    this.cs = new CipherState(tmpKey2);
+    this.cs = new CipherState(this.handshakePattern.cipher, tmpKey2);
   }
 
   /**
@@ -337,8 +339,8 @@ export class SymmetricState {
     const [tmpKey1, tmpKey2] = HKDF(this.handshakePattern.hash, this.ck, new Uint8Array(0), 32, 2);
     // Returns a tuple of two Cipher States initialized with the derived keys
     return {
-      cs1: new CipherState(tmpKey1),
-      cs2: new CipherState(tmpKey2),
+      cs1: new CipherState(this.handshakePattern.cipher, tmpKey1),
+      cs2: new CipherState(this.handshakePattern.cipher, tmpKey2),
     };
   }
 

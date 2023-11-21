@@ -24,7 +24,7 @@ import {
   PayloadV2ProtocolIDs,
   PreMessagePattern,
 } from "./patterns.js";
-import { ChaChaPolyCipherState, NoisePublicKey } from "./publickey.js";
+import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
 export {
@@ -45,7 +45,7 @@ export {
   PayloadV2ProtocolIDs,
   PreMessagePattern,
 };
-export { ChaChaPolyCipherState, NoisePublicKey };
+export { NoisePublicKey };
 export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
 export { QR };
