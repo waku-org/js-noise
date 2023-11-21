@@ -5,6 +5,7 @@ import { concat as uint8ArrayConcat } from "uint8arrays/concat";
 
 import type { bytes32 } from "./@types/basic.js";
 import type { KeyPair } from "./@types/keypair.js";
+import { Nonce } from "./nonce.js";
 
 /**
  * HKDF key derivation function
@@ -63,7 +64,7 @@ export interface Cipher {
    * @param plaintext data to encrypt
    * @returns sealed ciphertext including authentication tag
    */
-  encrypt(k: bytes32, n: Uint8Array, ad: Uint8Array, plaintext: Uint8Array): Uint8Array;
+  encrypt(k: bytes32, n: Nonce, ad: Uint8Array, plaintext: Uint8Array): Uint8Array;
 
   /**
    * Authenticate and decrypt data
@@ -73,7 +74,7 @@ export interface Cipher {
    * @param ciphertext data to decrypt
    * @returns plaintext if decryption was successful, `null` otherwise
    */
-  decrypt(k: bytes32, n: Uint8Array, ad: Uint8Array, ciphertext: Uint8Array): Uint8Array | null;
+  decrypt(k: bytes32, n: Nonce, ad: Uint8Array, ciphertext: Uint8Array): Uint8Array | null;
 }
 
 /**
