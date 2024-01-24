@@ -96,7 +96,7 @@ export class HandshakeState {
   }
 
   genMessageNametagSecrets(): { nms1: Uint8Array; nms2: Uint8Array } {
-    const [nms1, nms2] = HKDF(this.handshakePattern.hash, this.ss.h, new Uint8Array(), 2, 32);
+    const [nms1, nms2] = HKDF(this.handshakePattern.hash, this.ss.h, new Uint8Array(), 32, 2);
     return { nms1, nms2 };
   }
 
