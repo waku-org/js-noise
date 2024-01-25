@@ -3,6 +3,7 @@ import {
   NoiseHandshakeEncoder,
   NoiseSecureTransferDecoder,
   NoiseSecureTransferEncoder,
+  NoiseSecureMessage
 } from "./codec.js";
 import { DH25519 } from "./dh25519.js";
 import {
@@ -24,6 +25,7 @@ import {
   PayloadV2ProtocolIDs,
   PreMessagePattern,
 } from "./patterns.js";
+import { PayloadV2 } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
@@ -47,6 +49,13 @@ export {
 };
 export { NoisePublicKey };
 export { MessageNametagBuffer };
-export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
+export {
+  NoiseHandshakeDecoder,
+  NoiseHandshakeEncoder,
+  NoiseSecureTransferDecoder,
+  NoiseSecureTransferEncoder,
+  NoiseSecureMessage
+};
 export { QR };
 export { InitiatorParameters, ResponderParameters, WakuPairing };
+export { PayloadV2 };
