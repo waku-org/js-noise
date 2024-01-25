@@ -88,7 +88,7 @@ export class MessageNametagBuffer {
     if (k < 0 || this.buffer.length == 0) {
       return;
     }
-    const idx = this.buffer.length - (k % this.buffer.length);
+    const idx = k % this.buffer.length;
     const a1 = this.buffer.slice(idx);
     const a2 = this.buffer.slice(0, idx);
     this.buffer = a1.concat(a2);
