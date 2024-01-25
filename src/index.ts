@@ -14,6 +14,8 @@ import {
   StepHandshakeParameters,
 } from "./handshake.js";
 import { MessageNametagBuffer } from "./messagenametag.js";
+import { CipherState } from "./noise.js";
+import { Nonce } from "./nonce.js";
 import { InitiatorParameters, ResponderParameters, WakuPairing } from "./pairing.js";
 import {
   HandshakePattern,
@@ -24,6 +26,7 @@ import {
   PayloadV2ProtocolIDs,
   PreMessagePattern,
 } from "./patterns.js";
+import { PayloadV2 } from "./payload.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
@@ -50,3 +53,6 @@ export { MessageNametagBuffer };
 export { NoiseHandshakeDecoder, NoiseHandshakeEncoder, NoiseSecureTransferDecoder, NoiseSecureTransferEncoder };
 export { QR };
 export { InitiatorParameters, ResponderParameters, WakuPairing };
+export { PayloadV2 };
+export { CipherState };
+export { Nonce };
