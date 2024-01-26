@@ -45,7 +45,7 @@ export class HandshakeResult {
   rs: bytes32 = new Uint8Array();
   h: bytes32 = new Uint8Array();
 
-  constructor(private csOutbound: CipherState, private csInbound: CipherState) {}
+  constructor(protected csOutbound: CipherState, protected csInbound: CipherState) {}
 
   getCSOutbound(): CipherState {
     return this.csOutbound;
