@@ -47,6 +47,14 @@ export class HandshakeResult {
 
   constructor(private csOutbound: CipherState, private csInbound: CipherState) {}
 
+  getCSOutbound(): CipherState {
+    return this.csOutbound;
+  }
+
+  getCSInbound(): CipherState {
+    return this.csInbound;
+  }
+
   // Noise specification, Section 5:
   // Transport messages are then encrypted and decrypted by calling EncryptWithAd()
   // and DecryptWithAd() on the relevant CipherState with zero-length associated data.
