@@ -84,6 +84,11 @@ export class MessageNametagBuffer {
     return true;
   }
 
+  getNametagPosition(messageNametag: MessageNametag): number {
+    const index = this.buffer.findIndex((x) => uint8ArrayEquals(x, messageNametag));
+    return index;
+  }
+
   private rotateLeft(k: number): void {
     if (k < 0 || this.buffer.length == 0) {
       return;
@@ -123,6 +128,10 @@ export class MessageNametagBuffer {
       // We warn users that no secret is set
       console.debug("The message nametags buffer has no secret set");
     }
+  }
+
+  getNametagAtPosition(position: number): MessageNametag {
+    return this.buffer[position];
   }
 }
 
