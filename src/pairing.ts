@@ -106,8 +106,6 @@ export class WakuPairing {
       this.myEphemeralKey = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256.dhKey.generateKeyPair();
     }
 
-    console.log(this.myEphemeralKey.publicKey);
-
     if (pairingParameters instanceof InitiatorParameters) {
       this.initiator = true;
       this.qr = QR.from(pairingParameters.qrCode);
