@@ -106,8 +106,6 @@ export class WakuPairing {
       this.myEphemeralKey = NoiseHandshakePatterns.Noise_WakuPairing_25519_ChaChaPoly_SHA256.dhKey.generateKeyPair();
     }
 
-    console.log(this.myEphemeralKey.publicKey);
-
     if (pairingParameters instanceof InitiatorParameters) {
       this.initiator = true;
       this.qr = QR.from(pairingParameters.qrCode);
@@ -249,7 +247,7 @@ export class WakuPairing {
     const confirmationPromise = this.isAuthCodeConfirmed();
     await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-    console.log("Waiting for authcode confirmation...");
+    log("Waiting for authcode confirmation...");
     const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
@@ -311,7 +309,7 @@ export class WakuPairing {
     const confirmationPromise = this.isAuthCodeConfirmed();
     await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-    console.log("Waiting for authcode confirmation...");
+    log("Waiting for authcode confirmation...");
     const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
