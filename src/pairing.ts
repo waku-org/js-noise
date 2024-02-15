@@ -247,7 +247,7 @@ export class WakuPairing {
     const confirmationPromise = this.isAuthCodeConfirmed();
     await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-    console.log("Waiting for authcode confirmation...");
+    log("Waiting for authcode confirmation...");
     const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
@@ -309,7 +309,7 @@ export class WakuPairing {
     const confirmationPromise = this.isAuthCodeConfirmed();
     await delay(100);
     this.eventEmitter.emit("authCodeGenerated", this.handshake.genAuthcode());
-    console.log("Waiting for authcode confirmation...");
+    log("Waiting for authcode confirmation...");
     const confirmed = await confirmationPromise;
     if (!confirmed) {
       throw new Error("authcode is not confirmed");
