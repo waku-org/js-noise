@@ -39,7 +39,7 @@ describe("js-noise: pairing object", () => {
       const protoMsg = await encoder.toProtoObj(msg);
       msgEmitter.emit(encoder.contentTopic, protoMsg);
       return {
-        recipients: [],
+        successes: [],
       };
     },
   };

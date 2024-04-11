@@ -1,5 +1,13 @@
 import { DecodedMessage } from "@waku/core/lib/message/version_0";
-import type { IDecodedMessage, IDecoder, IEncoder, IMessage, IMetaSetter, IProtoMessage } from "@waku/interfaces";
+import {
+  DefaultPubsubTopic,
+  type IDecodedMessage,
+  type IDecoder,
+  type IEncoder,
+  type IMessage,
+  type IMetaSetter,
+  type IProtoMessage,
+} from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
 import debug from "debug";
 
@@ -17,6 +25,8 @@ const version = 2;
  * Used internally in the pairing object to represent a handshake message
  */
 export class NoiseHandshakeMessage extends DecodedMessage implements IDecodedMessage {
+  pubSubTopic = DefaultPubsubTopic;
+
   get payloadV2(): PayloadV2 {
     if (!this.payload) throw new Error("no payload available");
     return PayloadV2.deserialize(this.payload);
@@ -33,6 +43,8 @@ export class NoiseHandshakeEncoder implements IEncoder {
    * @param hsStepResult the result of a step executed while performing the handshake process
    * @param ephemeral makes messages ephemeral in the Waku network
    */
+  pubsubTopic = DefaultPubsubTopic;
+
   constructor(
     public contentTopic: string,
     private hsStepResult: HandshakeStepResult,
@@ -67,6 +79,8 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
   /**
    * @param contentTopic content topic on which the encoded WakuMessages were sent
    */
+  pubsubTopic = DefaultPubsubTopic;
+
   constructor(public contentTopic: string) {}
 
   fromWireToProtoObj(bytes: Uint8Array): Promise<IProtoMessage | undefined> {
@@ -101,10 +115,12 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
  */
 export class NoiseSecureMessage extends DecodedMessage implements IDecodedMessage {
   private readonly _decodedPayload: Uint8Array;
+  pubsubTopic: string;
 
   constructor(pubSubTopic: string, proto: WakuMessage, decodedPayload: Uint8Array) {
     super(pubSubTopic, proto);
     this._decodedPayload = decodedPayload;
+    this.pubsubTopic = pubSubTopic;
   }
 
   get payload(): Uint8Array {
@@ -125,6 +141,8 @@ export class NoiseSecureTransferEncoder implements IEncoder {
    * @param ephemeral whether messages should be tagged as ephemeral defaults to true.
    * @param metaSetter callback function that set the `meta` field.
    */
+  pubsubTopic = DefaultPubsubTopic;
+
   constructor(
     public contentTopic: string,
     private hsResult: HandshakeResult,
@@ -179,6 +197,8 @@ export class NoiseSecureTransferDecoder implements IDecoder<NoiseSecureMessage> 
    * @param contentTopic content topic on which the encoded WakuMessages were sent
    * @param hsResult handshake result obtained after the handshake is successful
    */
+  pubsubTopic = DefaultPubsubTopic;
+
   constructor(public contentTopic: string, private hsResult: HandshakeResult) {}
 
   fromWireToProtoObj(bytes: Uint8Array): Promise<IProtoMessage | undefined> {
