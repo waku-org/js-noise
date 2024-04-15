@@ -1,6 +1,5 @@
 import { DecodedMessage } from "@waku/core/lib/message/version_0";
 import {
-  DefaultPubsubTopic,
   type IDecodedMessage,
   type IDecoder,
   type IEncoder,
