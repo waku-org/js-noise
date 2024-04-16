@@ -68,8 +68,7 @@ describe("Waku Noise Sessions", () => {
     expect(uint8ArrayEquals(bobCommittedStaticKey, readQR.committedStaticKey)).to.be.true;
 
     // We set the contentTopic from the content topic parameters exchanged in the QR
-    const contentTopic =
-      "/" + applicationName + "/" + applicationVersion + "/" + shardId + "/proto";
+    const contentTopic = "/" + applicationName + "/" + applicationVersion + "/" + shardId + "/proto";
 
     // Pre-handshake message
     // <- eB {H(sB||r), contentTopicParams, messageNametag}
