@@ -78,9 +78,7 @@ export class WakuPairing {
    * @returns content topic string
    */
   private static toContentTopic(qr: QR): string {
-    return (
-      "/" + qr.applicationName + "/" + qr.applicationVersion + "/" + qr.shardId + "/proto"
-    );
+    return "/" + qr.applicationName + "/" + qr.applicationVersion + "/" + qr.shardId + "/proto";
   }
 
   /**

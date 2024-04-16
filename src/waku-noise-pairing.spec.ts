@@ -69,7 +69,7 @@ describe("Waku Noise Sessions", () => {
 
     // We set the contentTopic from the content topic parameters exchanged in the QR
     const contentTopic =
-      "/" + applicationName + "/" + applicationVersion + "/wakunoise/1/sessions_shard-" + shardId + "/proto";
+      "/" + applicationName + "/" + applicationVersion + "/" + shardId + "/proto";
 
     // Pre-handshake message
     // <- eB {H(sB||r), contentTopicParams, messageNametag}
