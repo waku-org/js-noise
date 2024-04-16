@@ -123,6 +123,7 @@
     "@stablelib/x25519": "^1.0.1",
     "@waku/core": "0.0.28",
     "@waku/proto": "0.0.6",
+    "@waku/utils": "^0.0.16",
     "bn.js": "^5.2.1",
     "eventemitter3": "^5.0.0",
     "p-event": "^5.0.1",

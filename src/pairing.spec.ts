@@ -15,7 +15,7 @@ const PUBSUB_TOPIC = "default";
 
 const EMPTY_PROTOMESSAGE = {
   timestamp: undefined,
-  contentTopic: "",
+  contentTopic: "/js-noise/1/message/proto",
   ephemeral: undefined,
   meta: undefined,
   rateLimitProof: undefined,

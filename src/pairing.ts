@@ -73,13 +73,12 @@ export class WakuPairing {
 
   /**
    * Convert a QR into a content topic
+   * Must follow - https://github.com/vacp2p/rfc-index/blob/main/waku/informational/23/topics.md
    * @param qr
    * @returns content topic string
    */
   private static toContentTopic(qr: QR): string {
-    return (
-      "/" + qr.applicationName + "/" + qr.applicationVersion + "/wakunoise/1/sessions_shard-" + qr.shardId + "/proto"
-    );
+    return "/" + qr.applicationName + "/" + qr.applicationVersion + "/" + qr.shardId + "/proto";
   }
 
   /**
