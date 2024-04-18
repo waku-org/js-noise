@@ -18,7 +18,7 @@ import { NoiseHandshakePatterns } from "./patterns.js";
 import { NoisePublicKey } from "./publickey.js";
 import { QR } from "./qr.js";
 
-const PUBSUB_TOPIC = "default";
+const PUBSUB_TOPIC = "/waku/2/default-waku/proto";
 
 describe("Waku Noise Sessions", () => {
   const rng = new HMACDRBG();
@@ -114,7 +114,7 @@ describe("Waku Noise Sessions", () => {
       messageNametag: qrMessageNameTag,
     });
 
-    let encoder = new NoiseHandshakeEncoder(contentTopic, aliceStep);
+    let encoder = new NoiseHandshakeEncoder(contentTopic, PUBSUB_TOPIC, aliceStep);
 
     // We prepare a Waku message from Alice's payload2
     // At this point wakuMsg is sent over the Waku network and is received
@@ -122,7 +122,7 @@ describe("Waku Noise Sessions", () => {
     let wakuMsgBytes = await encoder.toWire({ payload: new Uint8Array() });
 
     // We decode the WakuMessage from the ProtoBuffer
-    let decoder = new NoiseHandshakeDecoder(contentTopic);
+    let decoder = new NoiseHandshakeDecoder(contentTopic, PUBSUB_TOPIC);
     let wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
     let v2Msg = await decoder.fromProtoObj(PUBSUB_TOPIC, wakuMsgProto!);
 
@@ -157,14 +157,14 @@ describe("Waku Noise Sessions", () => {
     bobStep = bobHS.stepHandshake({ transportMessage: sentTransportMessage, messageNametag: bobMessageNametag });
 
     // We prepare a Waku message from Bob's payload2
-    encoder = new NoiseHandshakeEncoder(contentTopic, bobStep);
+    encoder = new NoiseHandshakeEncoder(contentTopic, PUBSUB_TOPIC, bobStep);
 
     // At this point wakuMsg is sent over the Waku network and is received
     // We simulate this by creating the ProtoBuffer from wakuMsg
     wakuMsgBytes = await encoder.toWire({ payload: new Uint8Array() });
 
     // We decode the WakuMessage from the ProtoBuffer
-    decoder = new NoiseHandshakeDecoder(contentTopic);
+    decoder = new NoiseHandshakeDecoder(contentTopic, PUBSUB_TOPIC);
     wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
     v2Msg = await decoder.fromProtoObj(PUBSUB_TOPIC, wakuMsgProto!);
 
@@ -194,14 +194,14 @@ describe("Waku Noise Sessions", () => {
     aliceStep = aliceHS.stepHandshake({ transportMessage: sentTransportMessage, messageNametag: aliceMessageNametag });
 
     // We prepare a Waku message from Alice's payload2
-    encoder = new NoiseHandshakeEncoder(contentTopic, aliceStep);
+    encoder = new NoiseHandshakeEncoder(contentTopic, PUBSUB_TOPIC, aliceStep);
 
     // At this point wakuMsg is sent over the Waku network and is received
     // We simulate this by creating the ProtoBuffer from wakuMsg
     wakuMsgBytes = await encoder.toWire({ payload: new Uint8Array() });
 
     // We decode the WakuMessage from the ProtoBuffer
-    decoder = new NoiseHandshakeDecoder(contentTopic);
+    decoder = new NoiseHandshakeDecoder(contentTopic, PUBSUB_TOPIC);
     wakuMsgProto = await decoder.fromWireToProtoObj(wakuMsgBytes!);
     v2Msg = await decoder.fromProtoObj(PUBSUB_TOPIC, wakuMsgProto!);
 
@@ -224,11 +224,11 @@ describe("Waku Noise Sessions", () => {
     const aliceHSResult = aliceHS.finalizeHandshake();
     const bobHSResult = bobHS.finalizeHandshake();
 
-    const aliceEncoder = new NoiseSecureTransferEncoder(contentTopic, aliceHSResult);
-    const bobEncoder = new NoiseSecureTransferEncoder(contentTopic, bobHSResult);
+    const aliceEncoder = new NoiseSecureTransferEncoder(contentTopic, PUBSUB_TOPIC, aliceHSResult);
+    const bobEncoder = new NoiseSecureTransferEncoder(contentTopic, PUBSUB_TOPIC, bobHSResult);
 
-    const aliceDecoder = new NoiseSecureTransferDecoder(contentTopic, aliceHSResult);
-    const bobDecoder = new NoiseSecureTransferDecoder(contentTopic, bobHSResult);
+    const aliceDecoder = new NoiseSecureTransferDecoder(contentTopic, PUBSUB_TOPIC, aliceHSResult);
+    const bobDecoder = new NoiseSecureTransferDecoder(contentTopic, PUBSUB_TOPIC, bobHSResult);
 
     // We test read/write of random messages exchanged between Alice and Bob
     // Note that we exchange more than the number of messages contained in the nametag buffer to test if they are filled correctly as the communication proceeds

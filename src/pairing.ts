@@ -82,6 +82,7 @@ export class WakuPairing {
   }
 
   /**
+   * @param pubsubTopic pubsubTopic to be used for handshake
    * @param sender object that implements Sender interface to publish waku messages
    * @param responder object that implements Responder interface to subscribe and receive waku messages
    * @param myStaticKey x25519 keypair
@@ -90,6 +91,7 @@ export class WakuPairing {
    * @param encoderParameters optional parameters for the resulting encoders
    */
   constructor(
+    private pubsubTopic: string,
     private sender: ISender,
     private responder: IReceiver,
     private myStaticKey: KeyPair,
@@ -223,7 +225,7 @@ export class WakuPairing {
 
   private async initiatorHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
-    const decoder = new NoiseHandshakeDecoder(this.contentTopic);
+    const decoder = new NoiseHandshakeDecoder(this.contentTopic, this.pubsubTopic);
     const subscriptionIterator = await this.responder.toSubscriptionIterator(decoder);
 
     // The handshake initiator writes a Waku2 payload v2 containing the handshake message
@@ -236,7 +238,7 @@ export class WakuPairing {
 
     // We prepare a message from initiator's payload2
     // At this point wakuMsg is sent over the Waku network to responder content topic
-    let encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
+    let encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
       payload: new Uint8Array(),
     });
@@ -281,7 +283,7 @@ export class WakuPairing {
       messageNametag: this.handshake.hs.toMessageNametag(),
     });
 
-    encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
+    encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
       payload: new Uint8Array(),
     });
@@ -291,12 +293,17 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult, this.encoderParameters);
+    return WakuPairing.getSecureCodec(
+      this.contentTopic,
+      this.pubsubTopic,
+      this.handshakeResult,
+      this.encoderParameters
+    );
   }
 
   private async responderHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
     // Subscribe to the contact content topic
-    const decoder = new NoiseHandshakeDecoder(this.contentTopic);
+    const decoder = new NoiseHandshakeDecoder(this.contentTopic, this.pubsubTopic);
     const subscriptionIterator = await this.responder.toSubscriptionIterator(decoder);
 
     // the received reads the initiator's payloads, and returns the (decrypted) transport message the initiator sent
@@ -322,7 +329,7 @@ export class WakuPairing {
     });
 
     // We prepare a Waku message from responder's payload2
-    const encoder = new NoiseHandshakeEncoder(this.contentTopic, hsStep);
+    const encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
       payload: new Uint8Array(),
     });
@@ -355,7 +362,12 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.handshakeResult, this.encoderParameters);
+    return WakuPairing.getSecureCodec(
+      this.contentTopic,
+      this.pubsubTopic,
+      this.handshakeResult,
+      this.encoderParameters
+    );
   }
 
   /**
@@ -368,16 +380,18 @@ export class WakuPairing {
    */
   static getSecureCodec(
     contentTopic: string,
+    pubsubTopic: string,
     hsResult: HandshakeResult,
     encoderParameters: EncoderParameters
   ): [NoiseSecureTransferEncoder, NoiseSecureTransferDecoder] {
     const secureEncoder = new NoiseSecureTransferEncoder(
       contentTopic,
+      pubsubTopic,
       hsResult,
       encoderParameters.ephemeral,
       encoderParameters.metaSetter
     );
-    const secureDecoder = new NoiseSecureTransferDecoder(contentTopic, hsResult);
+    const secureDecoder = new NoiseSecureTransferDecoder(contentTopic, pubsubTopic, hsResult);
 
     return [secureEncoder, secureDecoder];
   }
