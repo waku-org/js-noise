@@ -293,7 +293,12 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.pubsubTopic, this.handshakeResult, this.encoderParameters);
+    return WakuPairing.getSecureCodec(
+      this.contentTopic,
+      this.pubsubTopic,
+      this.handshakeResult,
+      this.encoderParameters
+    );
   }
 
   private async responderHandshake(): Promise<[NoiseSecureTransferEncoder, NoiseSecureTransferDecoder]> {
@@ -357,7 +362,12 @@ export class WakuPairing {
 
     this.eventEmitter.emit("pairingComplete");
 
-    return WakuPairing.getSecureCodec(this.contentTopic, this.pubsubTopic, this.handshakeResult, this.encoderParameters);
+    return WakuPairing.getSecureCodec(
+      this.contentTopic,
+      this.pubsubTopic,
+      this.handshakeResult,
+      this.encoderParameters
+    );
   }
 
   /**

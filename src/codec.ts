@@ -47,8 +47,7 @@ export class NoiseHandshakeEncoder implements IEncoder {
     public pubsubTopic: string,
     private hsStepResult: HandshakeStepResult,
     public ephemeral: boolean = true
-  ) {
-  }
+  ) {}
 
   async toWire(message: IMessage): Promise<Uint8Array | undefined> {
     const protoMessage = await this.toProtoObj(message);
@@ -80,8 +79,7 @@ export class NoiseHandshakeDecoder implements IDecoder<NoiseHandshakeMessage> {
    * @param contentTopic content topic on which the encoded WakuMessages were sent
    */
 
-  constructor(public contentTopic: string, public pubsubTopic: string) {
-  }
+  constructor(public contentTopic: string, public pubsubTopic: string) {}
 
   fromWireToProtoObj(bytes: Uint8Array): Promise<IProtoMessage | undefined> {
     const protoMessage = WakuMessage.decode(bytes);
@@ -149,8 +147,7 @@ export class NoiseSecureTransferEncoder implements IEncoder {
     private hsResult: HandshakeResult,
     public ephemeral: boolean = true,
     public metaSetter?: IMetaSetter
-  ) {
-  }
+  ) {}
 
   async toWire(message: IMessage): Promise<Uint8Array | undefined> {
     const protoMessage = await this.toProtoObj(message);
@@ -201,8 +198,7 @@ export class NoiseSecureTransferDecoder implements IDecoder<NoiseSecureMessage> 
    * @param hsResult handshake result obtained after the handshake is successful
    */
 
-  constructor(public contentTopic: string, public pubsubTopic: string, private hsResult: HandshakeResult) {
-  }
+  constructor(public contentTopic: string, public pubsubTopic: string, private hsResult: HandshakeResult) {}
 
   fromWireToProtoObj(bytes: Uint8Array): Promise<IProtoMessage | undefined> {
     const protoMessage = WakuMessage.decode(bytes);
