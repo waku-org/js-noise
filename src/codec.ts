@@ -8,7 +8,6 @@ import {
   type IProtoMessage,
 } from "@waku/interfaces";
 import { WakuMessage } from "@waku/proto";
-import { contentTopicToPubsubTopic } from "@waku/utils";
 import debug from "debug";
 
 import { HandshakeResult, HandshakeStepResult } from "./handshake.js";
