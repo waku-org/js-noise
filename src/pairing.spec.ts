@@ -11,7 +11,7 @@ import { DH25519 } from "./dh25519";
 import { MessageNametagBufferSize } from "./messagenametag";
 import { ResponderParameters, WakuPairing } from "./pairing";
 
-const PUBSUB_TOPIC = "default";
+const PUBSUB_TOPIC = "/waku/2/default-waku/proto";
 
 const EMPTY_PROTOMESSAGE = {
   timestamp: undefined,
@@ -72,14 +72,14 @@ describe("js-noise: pairing object", () => {
     const aliceStaticKey = dhKey.generateKeyPair();
 
     const recvParameters = new ResponderParameters();
-    const bobPairingObj = new WakuPairing(sender, responder, bobStaticKey, recvParameters);
+    const bobPairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, bobStaticKey, recvParameters);
     const bobExecP1 = bobPairingObj.execute();
 
     // Confirmation is done by manually
     confirmAuthCodeFlow(bobPairingObj, true);
 
     const initParameters = bobPairingObj.getPairingInfo();
-    const alicePairingObj = new WakuPairing(sender, responder, aliceStaticKey, initParameters);
+    const alicePairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, aliceStaticKey, initParameters);
     const aliceExecP1 = alicePairingObj.execute();
 
     // Confirmation is done manually
@@ -115,8 +115,8 @@ describe("js-noise: pairing object", () => {
 
   it("should timeout", async function () {
     const dhKey = new DH25519();
-    const bobPairingObj = new WakuPairing(sender, responder, dhKey.generateKeyPair(), new ResponderParameters());
-    const alicePairingObj = new WakuPairing(sender, responder, dhKey.generateKeyPair(), bobPairingObj.getPairingInfo());
+    const bobPairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, dhKey.generateKeyPair(), new ResponderParameters());
+    const alicePairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, dhKey.generateKeyPair(), bobPairingObj.getPairingInfo());
 
     const bobExecP1 = bobPairingObj.execute(1000);
     const aliceExecP1 = alicePairingObj.execute(1000);
@@ -147,14 +147,14 @@ describe("js-noise: pairing object", () => {
     };
 
     const recvParameters = new ResponderParameters();
-    const bobPairingObj = new WakuPairing(sender, responder, bobStaticKey, recvParameters, undefined, { metaSetter });
+    const bobPairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, bobStaticKey, recvParameters, undefined, { metaSetter });
     const bobExecP1 = bobPairingObj.execute();
 
     // Confirmation is done by manually
     confirmAuthCodeFlow(bobPairingObj, true);
 
     const initParameters = bobPairingObj.getPairingInfo();
-    const alicePairingObj = new WakuPairing(sender, responder, aliceStaticKey, initParameters, undefined, {
+    const alicePairingObj = new WakuPairing(PUBSUB_TOPIC, sender, responder, aliceStaticKey, initParameters, undefined, {
       metaSetter,
     });
     const aliceExecP1 = alicePairingObj.execute();
