@@ -240,7 +240,7 @@ export class WakuPairing {
     // At this point wakuMsg is sent over the Waku network to responder content topic
     let encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
-      payload: new Uint8Array(),
+      payload: Uint8Array.from(Array.from("1st step of initiator handshake").map((letter) => letter.charCodeAt(0))),
     });
 
     // We generate an authorization code using the handshake state
@@ -285,7 +285,7 @@ export class WakuPairing {
 
     encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
-      payload: new Uint8Array(),
+      payload: Uint8Array.from(Array.from("3rd step of initiator handshake").map((letter) => letter.charCodeAt(0))),
     });
 
     // Secure Transfer Phase
@@ -331,7 +331,7 @@ export class WakuPairing {
     // We prepare a Waku message from responder's payload2
     const encoder = new NoiseHandshakeEncoder(this.contentTopic, this.pubsubTopic, hsStep);
     await this.sender.send(encoder, {
-      payload: new Uint8Array(),
+      payload: Uint8Array.from(Array.from("2nd step of responder handshake").map((letter) => letter.charCodeAt(0))),
     });
 
     // 3rd step
